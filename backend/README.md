@@ -256,9 +256,9 @@ to forget to guard.
 
 ## AI architecture
 
-`app/ai/` is the mission-analysis pipeline's home. Nothing in the app calls into this package
-yet — it's infrastructure, not a wired feature — so it can't affect any existing route or
-background task.
+`app/ai/` is the mission-analysis pipeline's home. Nothing in the rest of the app calls into it
+yet — the orchestrator itself isn't wired into any route or background task — so it can't affect
+any existing behavior.
 
 - **`client.py`** — `AIClient` is an `ABC` with one abstract method, `complete(messages,
   **kwargs) -> str`. `AIMessage` (`role`/`content`) is the provider-agnostic input shape. Nothing
@@ -270,14 +270,19 @@ background task.
   `AnalysisResult`; nothing constructs one yet (report generation is a later ticket).
 - **`orchestrator.py`** — `AnalysisOrchestrator` takes all four agents via constructor injection
   and threads a single `AnalysisResult` through Business → Strategy → Risk → Executive. The control
-  flow is real and wired; the agents themselves (`app/ai/agents/*.py`) each raise
-  `NotImplementedError` from `analyze()` — no analysis logic exists yet.
+  flow is real and wired; three of the four agents (`strategy_agent.py`/`risk_agent.py`/
+  `executive_agent.py`) still raise `NotImplementedError` from `analyze()` — only `BusinessAgent`
+  has real logic (below). Nothing constructs an `AnalysisOrchestrator` yet either.
 - **`parser.py`** — `extract_json_block`/`parse_json`/`parse_structured_response` are genuinely
-  implemented (JSON parsing and Pydantic validation aren't "AI logic"), for later agents to reuse
-  instead of each hand-rolling response parsing.
+  implemented (JSON parsing and Pydantic validation aren't "AI logic"), reused by every agent that
+  needs structured output instead of each hand-rolling response parsing.
+- **`prompt_loader.py`** — `PromptLoader.load(name)` reads `prompts/<name>.md`. Kept as its own
+  small, injectable class (rather than agents reading files directly) so every agent loads prompts
+  the same way and prompt content can be swapped in tests without touching agent logic.
 - **`exceptions.py`** — `AIException` (base) → `ModelException` (the client/provider failed) and
   `ParsingException` (a response couldn't be parsed into the expected shape).
-- **`prompts/*.md`** — placeholder files only, one per agent; no prompt content yet.
+- **`prompts/*.md`** — one file per agent. `business.md` has real prompt content (below); the other
+  three remain placeholders — no prompt content until their agents are implemented.
 
 ### Providers (`app/ai/providers/`)
 
@@ -304,6 +309,28 @@ singleton or reads global state:
 fails fast inside `OpenAIClient.__init__` (translated to `ModelException`) rather than attempting a
 request that was never going to authenticate. `.env.example` documents all three with placeholder
 values only.
+
+### Business Agent (`app/ai/agents/business_agent.py`)
+
+The first (and so far only) pipeline stage with real logic. `BusinessAgent.__init__` takes an
+`AIClient` and a `PromptLoader` — both injected, never constructed internally, so it works
+identically against `OpenAIClient` or `MockAIClient`.
+
+`analyze()`: loads `prompts/business.md` as the system prompt, serializes the `AnalysisRequest`'s
+`MissionContext` (title/business_domain/objective/problem_statement/expected_output) and each
+`DatasetContext` (row/column counts, per-column name/dtype/category/missing_count,
+duplicate_row_count, numeric/categorical summaries — never raw rows) into a plain-text user
+message, and calls `client.complete([system, user])`. The response is validated against
+`BusinessAnalysisOutput` (`business_problem`, `key_opportunities`, `important_metrics`,
+`recommended_next_steps`, `confidence: float` bounded `[0, 1]`) via
+`parser.parse_structured_response`, which already raises `ParsingException` on invalid JSON or a
+schema mismatch — `BusinessAgent` adds one more check on top (an empty/whitespace-only response
+also raises `ParsingException`) since not every `AIClient` implementation is guaranteed to catch
+that itself. On success, it returns an updated `AnalysisResult` with `business_summary` set to
+`business_problem` and `AgentName.BUSINESS` appended to `completed_stages`.
+
+`DatasetContext` gained a `duplicate_row_count` field in this ticket — the 012A skeleton didn't
+have it, but the prompt requires it as one of its explicit inputs.
 
 ## Not implemented yet
 

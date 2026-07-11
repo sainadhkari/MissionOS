@@ -46,6 +46,7 @@ class DatasetContext(BaseModel):
     file_type: str
     row_count: int
     column_count: int
+    duplicate_row_count: int = 0
     columns: list[DatasetColumnSummary] = Field(default_factory=list)
     numeric_summary: dict[str, Any] = Field(default_factory=dict)
     categorical_summary: dict[str, Any] = Field(default_factory=dict)
