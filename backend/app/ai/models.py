@@ -61,6 +61,32 @@ class AnalysisRequest(BaseModel):
     requested_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
+class BusinessAnalysisOutput(BaseModel):
+    """The strict JSON shape `prompts/business.md` requires the model to
+    return. Lives here (not in `agents/business_agent.py`) because later
+    stages — Strategy first, eventually others — consume it directly as
+    structured input, not just as a summary string."""
+
+    business_problem: str
+    key_opportunities: list[str]
+    important_metrics: list[str]
+    recommended_next_steps: list[str]
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class StrategyAnalysisOutput(BaseModel):
+    """The strict JSON shape `prompts/strategy.md` requires the model to
+    return. Lives here for the same reason as `BusinessAnalysisOutput`."""
+
+    strategic_objectives: list[str]
+    recommended_initiatives: list[str]
+    implementation_roadmap: list[str]
+    kpis: list[str]
+    business_impact: str
+    priority: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
 class AnalysisResult(BaseModel):
     """Accumulates each agent's contribution as the pipeline runs. Every
     stage receives the `AnalysisResult` produced by the stage before it and
@@ -69,8 +95,8 @@ class AnalysisResult(BaseModel):
     """
 
     mission_id: uuid.UUID
-    business_summary: str | None = None
-    strategy_summary: str | None = None
+    business_analysis: BusinessAnalysisOutput | None = None
+    strategy_analysis: StrategyAnalysisOutput | None = None
     risk_summary: str | None = None
     executive_summary: str | None = None
     completed_stages: list[AgentName] = Field(default_factory=list)

@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 import openai
@@ -6,6 +7,20 @@ from openai import AsyncOpenAI
 from app.ai.client import AIClient, AIMessage
 from app.ai.exceptions import ModelException, ParsingException
 from app.config.settings import Settings
+
+logger = logging.getLogger("missionos.ai.openai_client")
+
+# OpenAI's reasoning-tier models (o1/o3/o4/gpt-5 families) behave differently
+# from sampling models in two ways this client compensates for. Both are
+# known, maintained exclusion-list facts, not heuristic guesses — the list
+# may need updating as new reasoning model families ship. Kept here (not in
+# any agent) because these are OpenAI-specific model constraints, not
+# something a provider-agnostic agent should know about.
+_REASONING_MODEL_PREFIXES = ("o1", "o3", "o4", "gpt-5")
+
+
+def _is_reasoning_model(model: str) -> bool:
+    return model.startswith(_REASONING_MODEL_PREFIXES)
 
 
 class OpenAIClient(AIClient):
@@ -29,6 +44,22 @@ class OpenAIClient(AIClient):
             raise ModelException(f"Could not initialize OpenAI client: {exc}") from exc
 
     async def complete(self, messages: list[AIMessage], **kwargs: Any) -> str:
+        if _is_reasoning_model(self._model):
+            if "temperature" in kwargs:
+                # Reasoning models reject sampling temperature outright (400
+                # Bad Request) rather than ignoring it.
+                logger.debug(
+                    "Dropping unsupported 'temperature' kwarg for reasoning model %s", self._model
+                )
+                kwargs = {key: value for key, value in kwargs.items() if key != "temperature"}
+            if "reasoning" not in kwargs:
+                # Without this, a reasoning model can spend its entire
+                # max_output_tokens budget on internal reasoning and return
+                # an empty output_text — "low" leaves headroom for the
+                # visible response while still reasoning some. Callers that
+                # want more depth can still pass their own `reasoning` kwarg.
+                kwargs["reasoning"] = {"effort": "low"}
+
         try:
             response = await self._client.responses.create(
                 model=self._model,

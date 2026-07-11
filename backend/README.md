@@ -312,25 +312,99 @@ values only.
 
 ### Business Agent (`app/ai/agents/business_agent.py`)
 
-The first (and so far only) pipeline stage with real logic. `BusinessAgent.__init__` takes an
-`AIClient` and a `PromptLoader` — both injected, never constructed internally, so it works
-identically against `OpenAIClient` or `MockAIClient`.
+The first pipeline stage with real logic. `BusinessAgent.__init__` takes an `AIClient` and a
+`PromptLoader` — both injected, never constructed internally, so it works identically against
+`OpenAIClient` or `MockAIClient`.
 
-`analyze()`: loads `prompts/business.md` as the system prompt, serializes the `AnalysisRequest`'s
-`MissionContext` (title/business_domain/objective/problem_statement/expected_output) and each
-`DatasetContext` (row/column counts, per-column name/dtype/category/missing_count,
-duplicate_row_count, numeric/categorical summaries — never raw rows) into a plain-text user
-message, and calls `client.complete([system, user])`. The response is validated against
-`BusinessAnalysisOutput` (`business_problem`, `key_opportunities`, `important_metrics`,
+`analyze()`: loads `prompts/business.md` as the system prompt, renders the mission/dataset context
+via `context_formatting.format_mission_and_datasets` (title/business_domain/objective/
+problem_statement/expected_output, and per dataset: row/column counts, per-column
+name/dtype/category/missing_count, duplicate_row_count, numeric/categorical summaries — never raw
+rows) as the user message, and calls `client.complete([system, user])`. The response is validated
+against `BusinessAnalysisOutput` (`business_problem`, `key_opportunities`, `important_metrics`,
 `recommended_next_steps`, `confidence: float` bounded `[0, 1]`) via
 `parser.parse_structured_response`, which already raises `ParsingException` on invalid JSON or a
 schema mismatch — `BusinessAgent` adds one more check on top (an empty/whitespace-only response
 also raises `ParsingException`) since not every `AIClient` implementation is guaranteed to catch
-that itself. On success, it returns an updated `AnalysisResult` with `business_summary` set to
-`business_problem` and `AgentName.BUSINESS` appended to `completed_stages`.
+that itself. On success, it returns an updated `AnalysisResult` with `business_analysis` set to the
+full validated output and `AgentName.BUSINESS` appended to `completed_stages`.
 
-`DatasetContext` gained a `duplicate_row_count` field in this ticket — the 012A skeleton didn't
-have it, but the prompt requires it as one of its explicit inputs.
+`DatasetContext` gained a `duplicate_row_count` field in Ticket-012C — the 012A skeleton didn't
+have it, but the Business Agent's prompt requires it as one of its explicit inputs.
+
+### Strategy Agent (`app/ai/agents/strategy_agent.py`)
+
+The second pipeline stage. Same DI shape as `BusinessAgent` (`AIClient` + `PromptLoader`,
+constructor-injected). It refuses to run without a completed `BusinessAnalysisOutput`: if `prior`
+is `None` or `prior.business_analysis` is `None`, `analyze()` raises `AIException` immediately,
+before calling the model — "do not recompute the business analysis" enforced structurally, not
+just by convention. On success it returns `prior.model_copy(...)` with `strategy_analysis` set
+(validated against `StrategyAnalysisOutput`: `strategic_objectives`, `recommended_initiatives`,
+`implementation_roadmap`, `kpis`, `business_impact`, `priority`, `confidence` bounded `[0, 1]`) and
+`AgentName.STRATEGY` appended — `business_analysis` passes through byte-for-byte unchanged, since
+Strategy only adds to the accumulated result, never rewrites what came before it.
+
+`BusinessAnalysisOutput` moved from `business_agent.py` into `models.py` in Ticket-012D (alongside
+the new `StrategyAnalysisOutput`), since it's no longer purely an implementation detail of
+`BusinessAgent` — `StrategyAgent` now consumes it directly as structured input.
+`AnalysisResult.business_summary`/`strategy_summary` (`str | None`) became `business_analysis`/
+`strategy_analysis` (the full typed output), since nothing outside this ticket's own tests
+depended on the old flattened-string shape yet.
+
+**Model configuration**: `StrategyAgent.__init__` takes `temperature: float = 0.2` and
+`max_output_tokens: int = 1500`, passed to every `client.complete()` call — overridable only via
+the constructor (DI), not per-call kwargs, so `analyze()`'s signature stays identical across every
+agent. This is scoped to `StrategyAgent` specifically; `BusinessAgent` still calls `complete()` with
+no extra kwargs, unchanged.
+
+**Prompt construction / injection resistance**: `prompts/strategy.md` is loaded verbatim as the
+system message — no string formatting is ever applied to it, so no dynamic value (including
+user-authored mission text) is ever spliced into the instructions themselves. All dynamic data —
+`MissionContext`, every `DatasetContext`, and the prior `BusinessAnalysisOutput` — goes into a
+*separate* user message as a single JSON payload (`{"mission": ..., "datasets": [...],
+"business_analysis": ...}`, produced via `.model_dump(mode="json")`), preceded by a short static
+preamble telling the model to treat everything in that JSON strictly as data, never as
+instructions, regardless of its wording. `strategy.md`'s "Reasoning Rules" section reinforces this
+on the instructions side. This is the concrete defense against prompt injection via a mission's
+`problem_statement` or similar free-text field.
+
+**Reasoning rules**: the prompt explicitly tells the model to treat `business_analysis` as its
+primary source of business understanding and `mission`/`datasets` as supporting context only — not
+to rediscover or restate what the Business Agent already established. This is prompt-level, not
+enforced in code (there's no way to verify "didn't duplicate reasoning" mechanically), but paired
+with the structural precondition check above.
+
+**Retry behavior**: `StrategyAgent` contains no retry logic of any kind — one `client.complete()`
+call, and any `ModelException` it raises propagates immediately. Retrying (currently just the
+`AsyncOpenAI` SDK's own default `max_retries=2` for transient failures) is entirely the
+`AIClient` implementation's concern.
+
+**Token usage**: the JSON payload sent to the model contains exactly three things — mission,
+dataset profiles, and the Business Agent's output — never raw dataset rows (`DatasetContext` never
+carries them in the first place) and nothing sent twice.
+
+**Reasoning-model compatibility** (`app/ai/providers/openai_client.py`): verifying this ticket's
+`temperature=0.2` default live surfaced two real constraints of this environment's configured
+model (`gpt-5`, a reasoning-tier model) that `OpenAIClient.complete()` now handles automatically
+for *any* reasoning-family model (`o1`/`o3`/`o4`/`gpt-5` prefixes), not just for `StrategyAgent`:
+- `temperature` is rejected outright (400 Bad Request) by reasoning models — dropped from the
+  request rather than sent, if present.
+- Without capping reasoning effort, a reasoning model can spend its entire `max_output_tokens`
+  budget on internal reasoning and return an empty `output_text` (reproduced live at the ticket's
+  specified `max_output_tokens=1500` before this fix). `OpenAIClient` now defaults
+  `reasoning={"effort": "low"}` for reasoning models when the caller didn't already specify one,
+  leaving headroom for the actual visible response. A caller that wants deeper reasoning can still
+  pass its own `reasoning` kwarg to override this.
+
+Both live entirely in `OpenAIClient` — `StrategyAgent` always just asks for `temperature=0.2` and
+never knows whether the configured model actually honors it, matching the same "agent doesn't know
+about the provider" separation the rest of this architecture already keeps.
+
+**Future orchestration compatibility**: `StrategyAgent.analyze()` takes and returns plain Pydantic
+models (`AnalysisRequest`/`AnalysisResult`, both fully `model_dump()`-serializable), depends only
+on constructor-injected collaborators, and holds no framework-specific types or global state — it
+already has the shape a LangGraph node needs (a callable over serializable state), so wiring it
+into a graph later shouldn't require changing this class itself.
 
 ## Not implemented yet
 
