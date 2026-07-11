@@ -21,3 +21,10 @@ class DatasetUploadStatus(enum.StrEnum):
     VALIDATING = "validating"
     READY = "ready"
     FAILED = "failed"
+
+
+class AnalysisStatus(enum.StrEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"

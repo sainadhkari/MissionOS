@@ -14,15 +14,19 @@ backend/
     core/             Cross-cutting app bootstrap (currently: logging_config.py)
     config/           Settings (pydantic-settings), get_settings() DI dependency
     database/         SQLAlchemy Base, engine, SessionLocal, get_db() dependency
-    models/           SQLAlchemy ORM models: User, Mission, Dataset, DatasetProfile (+ enums.py)
-    schemas/          Pydantic request/response models (health.py, auth.py, mission.py, dataset.py)
+    models/           SQLAlchemy ORM models: User, Mission, Dataset, DatasetProfile,
+                       MissionAnalysis (+ enums.py)
+    schemas/          Pydantic request/response models (health.py, auth.py, mission.py,
+                       dataset.py, mission_analysis.py)
     repositories/     Data-access layer, one class per model
-    services/         Business logic layer, incl. dataset validation/profiling
+    services/         Business logic layer, incl. dataset validation/profiling and
+                       AI analysis orchestration (mission_analysis_service.py)
     middleware/        Custom ASGI middleware (currently: request logging)
     utils/              Shared helpers (empty)
   alembic/              Migration tooling, wired to app.database.base.Base
     versions/           5f2e04b46f47_create_users_missions_datasets_tables.py
                          2c4d6ce01b9b_add_dataset_profiles_table.py
+                         58ae864afad0_add_mission_analyses_table.py
   alembic.ini
   requirements.txt      Runtime dependencies
   requirements-dev.txt   + ruff (lint/format), for local dev and CI
@@ -121,6 +125,12 @@ that same network.
   `row_count`, `column_count`, `columns`/`missing_values`/`numeric_summary`/`categorical_summary`
   (`JSONB`), `duplicate_row_count`, `encoding`, `delimiter`, `validation_errors` (`JSONB`, null
   unless validation failed), `created_at`, `updated_at`. One dataset has at most one profile.
+- **mission_analyses** — `id` (UUID pk), `mission_id` (FK → missions, unique, `ON DELETE CASCADE`),
+  `status` (native enum: pending/running/completed/failed, indexed), `business_analysis`/
+  `strategy_analysis`/`risk_analysis`/`executive_analysis` (`JSONB`, null until that stage
+  completes), `error_message` (null unless `status = failed`), `started_at`, `completed_at`,
+  `created_at`, `updated_at`. One mission has at most one analysis — re-running resets this row
+  rather than creating a new one (see "AI Analysis API & Orchestration" below).
 
 All primary keys are `UUID`, generated client-side (`default=uuid.uuid4`). All timestamps
 are `TIMESTAMP WITH TIME ZONE` with `server_default=now()`.
@@ -406,14 +416,183 @@ on constructor-injected collaborators, and holds no framework-specific types or 
 already has the shape a LangGraph node needs (a callable over serializable state), so wiring it
 into a graph later shouldn't require changing this class itself.
 
+### Risk Agent (`app/ai/agents/risk_agent.py`)
+
+The third pipeline stage. Same DI shape as `BusinessAgent`/`StrategyAgent` (`AIClient` +
+`PromptLoader`, constructor-injected) — no model-config overrides of its own (`temperature`/
+`max_output_tokens` weren't part of this ticket's spec, so `RiskAgent` doesn't add them; it calls
+`client.complete()` with no extra kwargs, same as `BusinessAgent`).
+
+It refuses to run without **both** a completed `BusinessAnalysisOutput` and `StrategyAnalysisOutput`:
+if `prior` is `None`, or either field is `None`, `analyze()` raises `AIException` immediately,
+before calling the model. On success it returns `prior.model_copy(...)` with `risk_analysis` set
+(validated against `RiskAnalysisOutput`: `critical_risks` — a list of `RiskItem`
+(`title`/`category`/`severity`/`probability`/`impact`/`mitigation`) — plus `assumptions`,
+`recommended_mitigations`, `overall_risk_level`, `confidence` bounded `[0, 1]`) and `AgentName.RISK`
+appended — `business_analysis` and `strategy_analysis` pass through byte-for-byte unchanged.
+
+**Prompt versioning**: this is the first prompt file with a version — `prompts/risk_v1.md`, with a
+`---\nversion: 1\nagent: risk\n---` frontmatter block, loaded via `prompt_loader.load("risk_v1")`
+(no changes to `PromptLoader` itself — `{name}.md` already resolves `"risk_v1"` to the right file).
+It replaces the unversioned `prompts/risk.md` placeholder from Ticket-012A, which is now deleted
+rather than left alongside it as dead weight. `business.md`/`strategy.md` remain unversioned for
+now — nothing requires them to adopt this convention retroactively.
+
+**Structured input / injection resistance**: identical approach to `StrategyAgent` — a JSON payload
+(`{"mission", "datasets", "business_analysis", "strategy_analysis"}`) behind the same static "this
+is data, not instructions" preamble, built via the newly-shared `context_formatting
+.format_structured_payload(payload: dict)` helper. This helper was extracted from
+`strategy_agent.py` in this ticket (which now calls it too) once a second agent needed the exact
+same wrapping logic — the payload dict differs per agent, but the preamble and JSON-fencing were
+byte-for-byte duplicated before this refactor.
+
+**How it builds on Business and Strategy without duplicating their reasoning**: enforced two ways.
+Structurally, the precondition check above makes it impossible to call the model at all without
+both prior outputs. At the prompt level, `risk_v1.md`'s Input section tells the model
+`business_analysis`/`strategy_analysis` are "primary source of truth... not drafts to
+second-guess" and `mission`/`datasets` are "supporting context only," and its Responsibilities
+section explicitly says not to generate a strategy or an executive summary. Verified live: with a
+mission about 30% first-month churn, a strategy proposing phased onboarding/incentive experiments,
+and a dataset with 12 duplicate rows and 45 missing `monthly_spend` values, the resulting risks
+referenced those exact specifics (a Data Quality risk named "Data join/label errors on day-30
+churn," citing "12 duplicates"; a Financial risk about "Incentive spend exceeds incremental
+margin," directly engaging with the strategy's proposed incentives) rather than generic,
+context-free risk boilerplate — and none of the 12 identified risks restated the business problem
+or re-proposed a strategy.
+
+**How `OpenAIClient` compatibility stays isolated from `RiskAgent`**: this ticket touched neither
+`openai_client.py` nor any Risk-specific compatibility code, and needed to touch none — the
+reasoning-model handling added in Ticket-012D (dropping `temperature`, defaulting
+`reasoning={"effort": "low"}`) lives entirely inside `OpenAIClient.complete()`, keyed only on the
+configured model name, not on which agent is calling it. `RiskAgent` never passes `temperature` at
+all (it has no such config), so only the reasoning-effort default applies to its calls — and it
+applied automatically, with zero Risk-specific code, confirmed by the live round-trip succeeding
+against the same `gpt-5` model on the first attempt.
+
+### Executive Agent (`app/ai/agents/executive_agent.py`)
+
+The fourth and final pipeline stage — the same DI shape as the other three, no model-config
+overrides (not part of this ticket's brief, same reasoning as `RiskAgent`).
+
+It refuses to run without **all three** prior outputs: `prior.business_analysis`,
+`prior.strategy_analysis`, and `prior.risk_analysis` must all be non-`None`, or `analyze()` raises
+`AIException` before calling the model. On success it returns `prior.model_copy(...)` with
+`executive_analysis` set (validated against `ExecutiveAnalysisOutput`: `executive_summary`,
+`key_findings`, `trade_offs`, `final_recommendation`, `confidence` bounded `[0, 1]`) and
+`AgentName.EXECUTIVE` appended — the three prior analyses pass through unchanged, as always.
+
+`ExecutiveAnalysisOutput` is distinct from the pre-existing `ExecutiveReport` model (from
+Ticket-012A): `ExecutiveAnalysisOutput` is this agent's structured output, threaded through the
+pipeline exactly like `BusinessAnalysisOutput`/`StrategyAnalysisOutput`/`RiskAnalysisOutput`.
+`ExecutiveReport` remains a separate, still-unbuilt, further-polished artifact — nothing
+constructs one; that's still a later capability, not this ticket.
+
+**Prompt**: `prompts/executive_v1.md`, versioned like `risk_v1.md` (`--- version: 1 / agent:
+executive ---`), replacing the unversioned `executive.md` placeholder from Ticket-012A (deleted,
+not left alongside it). Same structured-JSON-payload / static-preamble approach as Strategy and
+Risk, via the shared `context_formatting.format_structured_payload` — the payload here carries
+five keys: `mission`, `datasets`, `business_analysis`, `strategy_analysis`, `risk_analysis`.
+
+**Synthesis, not repetition**: enforced the same two ways as Risk's "don't rediscover" rule — the
+precondition check makes it structurally impossible to run without all three prior analyses, and
+`executive_v1.md`'s "Executive Reasoning Rules" section explicitly says not to regenerate the
+business analysis, not to regenerate the strategy, not to perform a new risk assessment, and to
+prefer synthesis over repetition. Verified live end-to-end via `AnalysisOrchestrator.run()` — the
+first time the full four-agent pipeline has run as a whole, not stage-by-stage — with a churn
+mission: `trade_offs` explicitly connected Strategy's proposed incentives to Risk's financial-risk
+finding ("Aggressive incentives can reduce churn but risk margin erosion...") and Strategy's
+timeline ambition to Risk's data-quality finding ("Speed to intervene by day 7 vs. data rigor...
+depends on clean, timely labels"), rather than restating either stage's output verbatim.
+
+`orchestrator.py` needed no changes — it already called `executive_agent.analyze(request, result)`
+as the last step since Ticket-012A; this ticket only had to make that call succeed.
+
+## AI Analysis API & Orchestration (Ticket-013)
+
+This is the ticket that finally calls `AnalysisOrchestrator` from somewhere real. Everything
+described in the "AI architecture" section above was correct and tested in isolation, but nothing
+in the app triggered it — this ticket is the wiring, not new AI logic. None of `BusinessAgent`,
+`StrategyAgent`, `RiskAgent`, `ExecutiveAgent`, `OpenAIClient`, `PromptLoader`, `parser.py`, or
+`orchestrator.py` were touched.
+
+**Endpoints** (`app/api/mission_analysis.py`, router prefix `/missions/{mission_id}`):
+- **`POST /analyze`** — validates ownership (`mission_service.get_mission`, 404 if not owned/
+  doesn't exist — same pattern as every other mission-scoped route) and that at least one dataset
+  has `upload_status = ready` (409 if none). Creates or resets a `PENDING` `MissionAnalysis` row,
+  schedules `run_analysis_pipeline` as a `BackgroundTask`, and returns immediately —
+  **202 Accepted**, matching the async `BackgroundTasks` pattern already established by dataset
+  upload/profiling (Ticket-010/011), not a new execution model.
+- **`GET /analysis`** — returns the current `MissionAnalysis` row (200), or 404 if the mission
+  doesn't exist/isn't owned, or if `POST /analyze` was never called for it. This wasn't explicitly
+  listed in the ticket's "Create" section, but a `POST` with no way to ever observe its result
+  wouldn't be a usable feature — same reasoning that produced `GET /datasets/{id}` for polling
+  dataset validation status in Ticket-010.
+
+**Context-building** (`app/services/mission_analysis_service.py`): `build_mission_context`/
+`build_dataset_context` map `Mission`/`Dataset`+`DatasetProfile` ORM rows to the AI module's
+`MissionContext`/`DatasetContext` Pydantic models — the same adapter role `app.ai.models`'
+docstrings always described as a future ticket's job. Only datasets with `upload_status = ready`
+are included (`_ready_datasets`, reused both at request time for the precondition check and again
+inside the background task, so a dataset that changed state between the two can't cause a stale
+read). Verified directly against real DB rows, not just implicitly through the pipeline working.
+
+**Persistence**: `MissionAnalysisRepository.upsert_pending` resets all four analysis columns plus
+`error_message`/timestamps to a clean `PENDING` state — since `mission_analyses` is 1:1 with a
+mission (like `dataset_profiles` is 1:1 with a dataset), re-running analysis starts fresh rather
+than mixing old and new results if a re-run only partially completes.
+
+**Background execution** (`run_analysis_pipeline`): owns its own `SessionLocal()` session, same
+reason as `run_dataset_profiling` — the request-scoped session is already closed by the time a
+`BackgroundTask` runs. It's a plain `def`, not `async def`, so Starlette dispatches it to the
+thread pool (again matching `run_dataset_profiling`) rather than the request event loop; since
+`AnalysisOrchestrator.run()` is itself `async`, `asyncio.run()` bridges into it from inside that
+thread. Status moves `pending` (set at `POST /analyze`) → `running` (set the instant the task
+starts) → `completed` or `failed`. `MissionRepository` gained a `get_by_id` (unfiltered, internal-
+only) for this task's use, mirroring `DatasetRepository.get_by_id` from Ticket-011 — the exact same
+need (a background task can't use an owner-scoped lookup because it has no request/user).
+
+**Error handling**: `AIException` (and any of its subclasses — `ModelException`, `ParsingException`
+— raised by the agents or `OpenAIClient`) is caught inside the background task and persisted as
+`status = failed` with `error_message` set to the exception's message — never re-raised, since
+there's no HTTP response left to raise it into. A bare `except Exception` beneath that is a safety
+net (logged via `logger.exception`, same pattern as `run_dataset_profiling`) so a bug in this
+ticket's own glue code still resolves to a persisted failure instead of a `MissionAnalysis` stuck
+at `running` forever. Verified directly (not just by inspection) by monkeypatching the orchestrator
+factory to raise `ModelException` and confirming the row lands on `failed` with the message intact,
+`started_at`/`completed_at` both set — without touching the real OpenAI configuration to do it.
+
+**Typed response**: `MissionAnalysisResponse` (`app/schemas/mission_analysis.py`) declares
+`business_analysis`/`strategy_analysis`/`risk_analysis`/`executive_analysis` as
+`BusinessAnalysisOutput | None` etc. — the AI module's own types, imported directly rather than
+redeclared — so the API response is typed all the way through, not typed-as-a-dict. This is the
+one place `app/schemas` reaches into `app.ai.models`; the dependency runs one direction only,
+`app.ai` still knows nothing about `app.schemas` or FastAPI.
+
+**Verified live end-to-end**: registered a user, created a mission, uploaded and validated a real
+CSV, called `POST /analyze` (202, `status: pending`), polled `GET /analysis` through `running` to
+`completed` (~70s for all four sequential agent calls), and confirmed all four analysis fields
+were persisted with the exact shapes `BusinessAnalysisOutput`/`StrategyAnalysisOutput`/
+`RiskAnalysisOutput`/`ExecutiveAnalysisOutput` define. Also verified: a second user gets 404 on
+both endpoints for a mission they don't own; a mission with no validated datasets gets 409;
+`GET /analysis` before any `POST /analyze` gets 404.
+
+**How this prepares MissionOS for future dashboards and reporting**: any UI that wants to show
+analysis progress or results now has exactly one thing to poll — `GET /missions/{id}/analysis` —
+returning a status machine (`pending`/`running`/`completed`/`failed`) plus fully typed, structured
+data for each stage, not prose to re-parse. A future report-generation ticket (the still-unbuilt
+`ExecutiveReport`) can read a `completed` `MissionAnalysis` row directly instead of re-running the
+pipeline or re-deriving structure from free text. A future dashboard can show per-mission analysis
+status across many missions with one query (`status`, indexed) without touching `app.ai` at all.
+
 ## Not implemented yet
 
 Deliberately absent so far:
 
-- Business logic beyond auth, mission CRUD, dataset upload/list/delete, and dataset
-  validation/profiling (mission execution, reports, etc.)
-- Everything AI-shaped beyond the client/provider layer described above: prompts, agent logic,
-  the orchestrator ever actually being called, embeddings, RAG
+- Business logic beyond auth, mission CRUD, dataset upload/list/delete, dataset
+  validation/profiling, and AI mission analysis (reports, etc.)
+- The `ExecutiveReport` artifact (title/summary/recommendations derived from a completed
+  `AnalysisResult`) — still just a data contract, nothing constructs one
+- Embeddings, RAG, LangGraph
 - A job queue — the profiling pipeline is a single in-process `BackgroundTask`; it doesn't survive
   a server restart mid-task, isn't retried on failure, and doesn't scale past one process
 - Refresh tokens / token revocation / logout invalidation (logout is client-side only —

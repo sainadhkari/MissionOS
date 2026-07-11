@@ -13,6 +13,7 @@ from app.models.enums import MissionPriority, MissionStatus
 
 if TYPE_CHECKING:
     from app.models.dataset import Dataset
+    from app.models.mission_analysis import MissionAnalysis
     from app.models.user import User
 
 
@@ -50,4 +51,7 @@ class Mission(Base):
     user: Mapped[User] = relationship(back_populates="missions")
     datasets: Mapped[list[Dataset]] = relationship(
         back_populates="mission", cascade="all, delete-orphan"
+    )
+    analysis: Mapped[MissionAnalysis | None] = relationship(
+        back_populates="mission", cascade="all, delete-orphan", uselist=False
     )

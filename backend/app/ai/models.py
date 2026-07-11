@@ -87,6 +87,42 @@ class StrategyAnalysisOutput(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
+class RiskItem(BaseModel):
+    title: str = Field(min_length=1)
+    category: str = Field(min_length=1)
+    severity: str = Field(min_length=1)
+    probability: str = Field(min_length=1)
+    impact: str = Field(min_length=1)
+    mitigation: str = Field(min_length=1)
+
+
+class RiskAnalysisOutput(BaseModel):
+    """The strict JSON shape `prompts/risk_v1.md` requires the model to
+    return. Lives here for the same reason as `BusinessAnalysisOutput` and
+    `StrategyAnalysisOutput`."""
+
+    critical_risks: list[RiskItem]
+    assumptions: list[str]
+    recommended_mitigations: list[str]
+    overall_risk_level: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class ExecutiveAnalysisOutput(BaseModel):
+    """The strict JSON shape `prompts/executive_v1.md` requires the model to
+    return. Lives here for the same reason as the other three agent outputs.
+    Distinct from `ExecutiveReport` below: this is the Executive *Agent's*
+    structured output threaded through the pipeline like every other stage;
+    `ExecutiveReport` is a separate, still-unbuilt, further-polished artifact
+    a later capability would generate from a completed `AnalysisResult`."""
+
+    executive_summary: str = Field(min_length=1)
+    key_findings: list[str]
+    trade_offs: list[str]
+    final_recommendation: str = Field(min_length=1)
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
 class AnalysisResult(BaseModel):
     """Accumulates each agent's contribution as the pipeline runs. Every
     stage receives the `AnalysisResult` produced by the stage before it and
@@ -97,8 +133,8 @@ class AnalysisResult(BaseModel):
     mission_id: uuid.UUID
     business_analysis: BusinessAnalysisOutput | None = None
     strategy_analysis: StrategyAnalysisOutput | None = None
-    risk_summary: str | None = None
-    executive_summary: str | None = None
+    risk_analysis: RiskAnalysisOutput | None = None
+    executive_analysis: ExecutiveAnalysisOutput | None = None
     completed_stages: list[AgentName] = Field(default_factory=list)
     completed_at: datetime | None = None
 

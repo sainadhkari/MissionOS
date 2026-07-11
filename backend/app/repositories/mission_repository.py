@@ -23,6 +23,11 @@ class MissionRepository:
         stmt = select(Mission).where(Mission.id == mission_id, Mission.user_id == user_id)
         return self.db.scalar(stmt)
 
+    def get_by_id(self, mission_id: uuid.UUID) -> Mission | None:
+        """Unfiltered lookup for internal/background use only — never call this
+        on behalf of an HTTP request; use `get_for_user` there instead."""
+        return self.db.get(Mission, mission_id)
+
     def create(self, *, user_id: uuid.UUID, **fields: Any) -> Mission:
         mission = Mission(user_id=user_id, **fields)
         self.db.add(mission)
