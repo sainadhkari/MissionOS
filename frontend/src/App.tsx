@@ -8,6 +8,8 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import CreateMission from './pages/CreateMission'
 import MissionHistory from './pages/MissionHistory'
+import MissionDetails from './pages/MissionDetails'
+import EditMission from './pages/EditMission'
 import MissionExecution from './pages/MissionExecution'
 import MissionReport from './pages/MissionReport'
 import DataLibrary from './pages/DataLibrary'
@@ -31,6 +33,8 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="missions/new" element={<CreateMission />} />
         <Route path="missions/history" element={<MissionHistory />} />
+        <Route path="missions/:missionId/edit" element={<EditMission />} />
+        <Route path="missions/:missionId" element={<MissionDetails />} />
         <Route path="missions/:missionId/execution" element={<MissionExecution />} />
         <Route path="missions/:missionId/report" element={<MissionReport />} />
         <Route path="data-library" element={<DataLibrary />} />

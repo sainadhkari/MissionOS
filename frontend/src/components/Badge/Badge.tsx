@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react'
 
-type BadgeVariant = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info'
+export type BadgeVariant = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info'
 
 interface BadgeProps {
   variant?: BadgeVariant

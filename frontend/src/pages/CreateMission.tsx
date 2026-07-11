@@ -1,90 +1,113 @@
 import { useState } from 'react'
-import { Rocket } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
-import Input from '../components/Input'
-import Select from '../components/Select'
-import Textarea from '../components/Textarea'
 import Button from '../components/Button'
-import { FormRow } from '../components/Form'
+import Banner from '../components/Banner'
 import Stepper from '../components/Stepper'
-import EmptyState from '../components/EmptyState'
+import MissionForm from '../components/MissionForm'
+import { missionDetailsPath } from '../constants/routes'
+import { missionService } from '../services/mission'
+import { getErrorMessage } from '../utils/http'
+import { EMPTY_MISSION_FORM_VALUES } from '../types/Mission'
+import type { MissionFormValues } from '../types/Mission'
 
 const STEPS = ['Mission Information', 'Review', 'Launch']
 
-const BUSINESS_DOMAINS = ['Finance', 'Healthcare', 'Retail', 'Manufacturing', 'Technology', 'Operations', 'Other']
-const PRIORITIES = ['Low', 'Medium', 'High', 'Critical']
-
 function CreateMission() {
+  const navigate = useNavigate()
   const [step, setStep] = useState(0)
+  const [values, setValues] = useState<MissionFormValues>(EMPTY_MISSION_FORM_VALUES)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const isFirstStep = step === 0
   const isLastStep = step === STEPS.length - 1
 
+  const isMissionInfoComplete =
+    values.title.trim() !== '' &&
+    values.businessDomain.trim() !== '' &&
+    values.problemStatement.trim() !== '' &&
+    values.objective.trim() !== '' &&
+    values.expectedOutput.trim() !== ''
+
+  async function handleLaunch() {
+    setError(null)
+    setIsSubmitting(true)
+    try {
+      const mission = await missionService.create(values)
+      navigate(missionDetailsPath(mission.id), { replace: true, state: { created: true } })
+    } catch (err) {
+      setError(getErrorMessage(err, 'Could not create mission. Please try again.'))
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div>
-      <PageHeader
-        title="Create Mission"
-        subtitle="Placeholder page — define a new mission for MissionOS to work on."
-      />
+      <PageHeader title="Create Mission" subtitle="Define a new mission for MissionOS to work on." />
 
       <Card>
         <Stepper steps={STEPS} currentStep={step} />
 
-        {step === 0 && (
-          <div className="flex flex-col gap-5">
-            <Input id="missionName" label="Mission Name" placeholder="e.g. Q3 Churn Reduction" />
+        {error && (
+          <Banner variant="danger" className="mb-5">
+            {error}
+          </Banner>
+        )}
 
-            <FormRow>
-              <Select id="businessDomain" label="Business Domain" defaultValue="">
-                <option value="" disabled>
-                  Select a domain
-                </option>
-                {BUSINESS_DOMAINS.map((domain) => (
-                  <option key={domain} value={domain}>
-                    {domain}
-                  </option>
-                ))}
-              </Select>
+        {step === 0 && <MissionForm values={values} onChange={setValues} />}
 
-              <Select id="priority" label="Priority" defaultValue="">
-                <option value="" disabled>
-                  Select a priority
-                </option>
-                {PRIORITIES.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {priority}
-                  </option>
-                ))}
-              </Select>
-            </FormRow>
-
-            <Textarea
-              id="problemStatement"
-              label="Problem Statement"
-              placeholder="What problem are we solving?"
-              rows={3}
-            />
-            <Textarea
-              id="businessObjective"
-              label="Business Objective"
-              placeholder="What outcome are we aiming for?"
-              rows={3}
-            />
-            <Textarea
-              id="expectedOutput"
-              label="Expected Output"
-              placeholder="What should the mission produce?"
-              rows={3}
-            />
+        {step === 1 && (
+          <div className="flex flex-col gap-4">
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                Mission Name
+              </h2>
+              <p className="mt-1 text-sm text-neutral-700">{values.title || '—'}</p>
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                Business Domain / Priority
+              </h2>
+              <p className="mt-1 text-sm text-neutral-700">
+                {values.businessDomain || '—'} · {values.priority}
+              </p>
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                Problem Statement
+              </h2>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700">
+                {values.problemStatement || '—'}
+              </p>
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                Business Objective
+              </h2>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700">
+                {values.objective || '—'}
+              </p>
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                Expected Output
+              </h2>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700">
+                {values.expectedOutput || '—'}
+              </p>
+            </div>
           </div>
         )}
 
-        {step > 0 && (
-          <EmptyState
-            icon={Rocket}
-            title={`${STEPS[step]} — coming soon`}
-            description="This step will be available in a future update."
-          />
+        {step === 2 && (
+          <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+            <p className="text-sm font-medium text-neutral-900">Ready to launch</p>
+            <p className="max-w-xs text-sm text-neutral-500">
+              This creates the mission as a draft. You can edit it any time from Mission History.
+            </p>
+          </div>
         )}
 
         <div className="mt-8 flex items-center justify-between border-t border-neutral-200 pt-6">
@@ -95,13 +118,19 @@ function CreateMission() {
           >
             Previous
           </Button>
-          <Button
-            variant="primary"
-            disabled={isLastStep}
-            onClick={() => setStep((current) => Math.min(STEPS.length - 1, current + 1))}
-          >
-            Next
-          </Button>
+          {isLastStep ? (
+            <Button variant="primary" onClick={handleLaunch} disabled={isSubmitting}>
+              {isSubmitting ? 'Launching…' : 'Launch Mission'}
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              disabled={step === 0 && !isMissionInfoComplete}
+              onClick={() => setStep((current) => Math.min(STEPS.length - 1, current + 1))}
+            >
+              Next
+            </Button>
+          )}
         </div>
       </Card>
     </div>
