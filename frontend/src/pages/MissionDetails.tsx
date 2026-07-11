@@ -9,6 +9,7 @@ import Banner from '../components/Banner'
 import EmptyState from '../components/EmptyState'
 import Button, { buttonClasses } from '../components/Button'
 import DatasetUploader from '../components/DatasetUploader'
+import MissionAnalysisSection from '../components/MissionAnalysisSection'
 import { ROUTES, editMissionPath, datasetDetailsPath } from '../constants/routes'
 import { missionService } from '../services/mission'
 import { datasetService } from '../services/dataset'
@@ -268,6 +269,8 @@ function MissionDetailsView({
           </ul>
         )}
       </Card>
+
+      <MissionAnalysisSection missionId={mission.id} />
     </div>
   )
 }

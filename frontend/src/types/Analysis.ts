@@ -1,0 +1,66 @@
+export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'failed'
+
+export interface BusinessAnalysis {
+  business_problem: string
+  key_opportunities: string[]
+  important_metrics: string[]
+  recommended_next_steps: string[]
+  confidence: number
+}
+
+export interface StrategyAnalysis {
+  strategic_objectives: string[]
+  recommended_initiatives: string[]
+  implementation_roadmap: string[]
+  kpis: string[]
+  business_impact: string
+  priority: string
+  confidence: number
+}
+
+export interface RiskItem {
+  title: string
+  category: string
+  severity: string
+  probability: string
+  impact: string
+  mitigation: string
+}
+
+export interface RiskAnalysis {
+  critical_risks: RiskItem[]
+  assumptions: string[]
+  recommended_mitigations: string[]
+  overall_risk_level: string
+  confidence: number
+}
+
+export interface ExecutiveAnalysis {
+  executive_summary: string
+  key_findings: string[]
+  trade_offs: string[]
+  final_recommendation: string
+  confidence: number
+}
+
+export interface MissionAnalysis {
+  id: string
+  mission_id: string
+  status: AnalysisStatus
+  business_analysis: BusinessAnalysis | null
+  strategy_analysis: StrategyAnalysis | null
+  risk_analysis: RiskAnalysis | null
+  executive_analysis: ExecutiveAnalysis | null
+  error_message: string | null
+  started_at: string | null
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export const NON_TERMINAL_ANALYSIS_STATUSES: AnalysisStatus[] = ['pending', 'running']
+
+/** The frontend's view of analysis status also includes "not started" —
+ * there is no backend value for this; it's what we show when
+ * `GET /missions/{id}/analysis` returns 404 (no analysis has ever run). */
+export type AnalysisViewStatus = 'not_started' | AnalysisStatus
