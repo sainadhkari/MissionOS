@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # Relative to the backend/ directory, regardless of the process's cwd.
     upload_dir: str = "storage/uploads"
     max_upload_size_bytes: int = 25 * 1024 * 1024
+    # No default — a blank key must fail loudly (via OpenAIClient) rather than
+    # silently attempt a request that was never going to authenticate.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_timeout: float = 30.0
 
     @property
     def cors_origins_list(self) -> list[str]:

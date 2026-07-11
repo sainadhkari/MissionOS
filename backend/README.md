@@ -254,13 +254,65 @@ routes) now embeds `profile: DatasetProfileResponse | None`, so the existing own
 routes are the only way to reach profile data; there's no separate unauthenticated profile lookup
 to forget to guard.
 
+## AI architecture
+
+`app/ai/` is the mission-analysis pipeline's home. Nothing in the app calls into this package
+yet — it's infrastructure, not a wired feature — so it can't affect any existing route or
+background task.
+
+- **`client.py`** — `AIClient` is an `ABC` with one abstract method, `complete(messages,
+  **kwargs) -> str`. `AIMessage` (`role`/`content`) is the provider-agnostic input shape. Nothing
+  outside `app/ai/providers/` knows or cares which concrete provider is behind it.
+- **`models.py`** — `MissionContext`/`DatasetContext` are read-only snapshots shaped for AI
+  consumption, deliberately independent of `app.schemas`/`app.models` (so this package never needs
+  to know how the rest of the app persists or serves data). `AnalysisResult` accumulates through
+  the pipeline — each stage returns an updated copy. `ExecutiveReport` wraps a *completed*
+  `AnalysisResult`; nothing constructs one yet (report generation is a later ticket).
+- **`orchestrator.py`** — `AnalysisOrchestrator` takes all four agents via constructor injection
+  and threads a single `AnalysisResult` through Business → Strategy → Risk → Executive. The control
+  flow is real and wired; the agents themselves (`app/ai/agents/*.py`) each raise
+  `NotImplementedError` from `analyze()` — no analysis logic exists yet.
+- **`parser.py`** — `extract_json_block`/`parse_json`/`parse_structured_response` are genuinely
+  implemented (JSON parsing and Pydantic validation aren't "AI logic"), for later agents to reuse
+  instead of each hand-rolling response parsing.
+- **`exceptions.py`** — `AIException` (base) → `ModelException` (the client/provider failed) and
+  `ParsingException` (a response couldn't be parsed into the expected shape).
+- **`prompts/*.md`** — placeholder files only, one per agent; no prompt content yet.
+
+### Providers (`app/ai/providers/`)
+
+Two concrete `AIClient` implementations, both constructed via dependency injection — neither is a
+singleton or reads global state:
+
+- **`OpenAIClient`** — wraps `openai.AsyncOpenAI` and calls the Responses API
+  (`client.responses.create`). Takes a `Settings` instance in its constructor and never reads the
+  module-level `settings` singleton directly, so it's swappable/testable without touching env vars.
+  `complete()` converts `AIMessage` → `{"role", "content"}` dicts for the SDK's `input` param and
+  returns `response.output_text`; it knows nothing about `MissionContext` or prompts. SDK
+  exceptions are translated to `ModelException`
+  (`AuthenticationError`/`RateLimitError`/`APITimeoutError`/`APIConnectionError`, plus a catch-all
+  for other `APIError` subclasses); an empty `output_text` (e.g. a reasoning model that exhausted
+  its token budget on reasoning and never emitted visible text — reproduced live during
+  verification) raises `ParsingException` rather than silently returning `""`.
+- **`MockAIClient`** — returns a fixed, constructor-injected string, touches no network. For local
+  development and future automated tests that need an `AIClient` without cost or credentials.
+
+### Configuration
+
+`OPENAI_API_KEY` / `OPENAI_MODEL` / `OPENAI_TIMEOUT` are `Settings` fields like everything else —
+`OPENAI_API_KEY` defaults to `""` (never a real secret in code), so a misconfigured environment
+fails fast inside `OpenAIClient.__init__` (translated to `ModelException`) rather than attempting a
+request that was never going to authenticate. `.env.example` documents all three with placeholder
+values only.
+
 ## Not implemented yet
 
 Deliberately absent so far:
 
 - Business logic beyond auth, mission CRUD, dataset upload/list/delete, and dataset
   validation/profiling (mission execution, reports, etc.)
-- AI / LLM integration, embeddings, RAG — profiling is descriptive statistics only, no model calls
+- Everything AI-shaped beyond the client/provider layer described above: prompts, agent logic,
+  the orchestrator ever actually being called, embeddings, RAG
 - A job queue — the profiling pipeline is a single in-process `BackgroundTask`; it doesn't survive
   a server restart mid-task, isn't retried on failure, and doesn't scale past one process
 - Refresh tokens / token revocation / logout invalidation (logout is client-side only —
