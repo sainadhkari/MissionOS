@@ -1,15 +1,15 @@
 import type { BadgeVariant } from '../components/Badge'
-import type { DatasetUploadStatus } from '../types/Dataset'
+import type { DatasetColumnCategory, DatasetUploadStatus } from '../types/Dataset'
 
 const STATUS_LABELS: Record<DatasetUploadStatus, string> = {
   uploaded: 'Uploaded',
   validating: 'Validating',
-  ready: 'Ready',
-  failed: 'Failed',
+  ready: 'Validated',
+  failed: 'Validation Failed',
 }
 
 const STATUS_BADGE_VARIANTS: Record<DatasetUploadStatus, BadgeVariant> = {
-  uploaded: 'success',
+  uploaded: 'neutral',
   validating: 'warning',
   ready: 'success',
   failed: 'danger',
@@ -21,6 +21,31 @@ export function datasetStatusLabel(status: DatasetUploadStatus): string {
 
 export function datasetStatusBadgeVariant(status: DatasetUploadStatus): BadgeVariant {
   return STATUS_BADGE_VARIANTS[status]
+}
+
+const CATEGORY_LABELS: Record<DatasetColumnCategory, string> = {
+  numeric: 'Numeric',
+  categorical: 'Categorical',
+  date: 'Date',
+}
+
+const CATEGORY_BADGE_VARIANTS: Record<DatasetColumnCategory, BadgeVariant> = {
+  numeric: 'info',
+  categorical: 'neutral',
+  date: 'primary',
+}
+
+export function columnCategoryLabel(category: DatasetColumnCategory): string {
+  return CATEGORY_LABELS[category]
+}
+
+export function columnCategoryBadgeVariant(category: DatasetColumnCategory): BadgeVariant {
+  return CATEGORY_BADGE_VARIANTS[category]
+}
+
+export function formatStatValue(value: number | null): string {
+  if (value === null) return '—'
+  return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2)
 }
 
 export function formatFileSize(bytes: number): string {

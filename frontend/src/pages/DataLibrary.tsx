@@ -11,7 +11,7 @@ import Select from '../components/Select'
 import DatasetUploader from '../components/DatasetUploader'
 import { Table, TableBody, TableHeader, TableHeaderCell, TableRow, TableCell } from '../components/Table'
 import { buttonClasses } from '../components/Button'
-import { missionDetailsPath } from '../constants/routes'
+import { missionDetailsPath, datasetDetailsPath } from '../constants/routes'
 import { useMissions } from '../hooks/useMissions'
 import { datasetService } from '../services/dataset'
 import { getErrorMessage } from '../utils/http'
@@ -185,9 +185,12 @@ function DataLibrary() {
               {datasetsState.data.map((dataset) => (
                 <TableRow key={dataset.id}>
                   <TableCell>
-                    <span className="font-medium text-neutral-900">
+                    <Link
+                      to={datasetDetailsPath(dataset.id)}
+                      className="font-medium text-neutral-900 hover:text-primary-600"
+                    >
                       {dataset.original_filename}
-                    </span>
+                    </Link>
                     <span className="ml-2 text-xs text-neutral-400">
                       {dataset.file_type.toUpperCase()}
                     </span>
@@ -272,9 +275,12 @@ function DataLibrary() {
           <ul className="flex flex-col divide-y divide-neutral-200">
             {recentUploads.map((dataset) => (
               <li key={dataset.id} className="flex items-center justify-between gap-3 py-2.5">
-                <span className="min-w-0 flex-1 truncate text-sm text-neutral-900">
+                <Link
+                  to={datasetDetailsPath(dataset.id)}
+                  className="min-w-0 flex-1 truncate text-sm text-neutral-900 hover:text-primary-600"
+                >
                   {dataset.original_filename}
-                </span>
+                </Link>
                 <span className="text-xs text-neutral-400">{formatDate(dataset.created_at)}</span>
               </li>
             ))}

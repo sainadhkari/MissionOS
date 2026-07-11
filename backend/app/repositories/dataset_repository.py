@@ -28,6 +28,11 @@ class DatasetRepository:
         )
         return self.db.scalar(stmt)
 
+    def get_by_id(self, dataset_id: uuid.UUID) -> Dataset | None:
+        """Unfiltered lookup for internal/background use only — never call this
+        on behalf of an HTTP request; use `get_owned` there instead."""
+        return self.db.get(Dataset, dataset_id)
+
     def create(self, *, mission_id: uuid.UUID, **fields: Any) -> Dataset:
         dataset = Dataset(mission_id=mission_id, **fields)
         self.db.add(dataset)

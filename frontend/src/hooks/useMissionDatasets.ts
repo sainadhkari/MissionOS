@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { datasetService } from '../services/dataset'
 import { getErrorMessage } from '../utils/http'
+import { NON_TERMINAL_DATASET_STATUSES } from '../types/Dataset'
 import type { Dataset } from '../types/Dataset'
+
+const POLL_INTERVAL_MS = 2000
 
 type DatasetsState =
   | { status: 'loading' }
@@ -24,6 +27,19 @@ export function useMissionDatasets(missionId: string | undefined) {
   useEffect(() => {
     load()
   }, [load])
+
+  // Poll while any dataset is still being validated, so status badges update
+  // without a manual refresh.
+  useEffect(() => {
+    if (state.status !== 'success') return
+    const hasPending = state.data.some((dataset) =>
+      NON_TERMINAL_DATASET_STATUSES.includes(dataset.upload_status)
+    )
+    if (!hasPending) return
+
+    const timeout = setTimeout(load, POLL_INTERVAL_MS)
+    return () => clearTimeout(timeout)
+  }, [state, load])
 
   const refetch = useCallback(() => {
     setState({ status: 'loading' })

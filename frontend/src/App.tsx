@@ -10,6 +10,7 @@ import CreateMission from './pages/CreateMission'
 import MissionHistory from './pages/MissionHistory'
 import MissionDetails from './pages/MissionDetails'
 import EditMission from './pages/EditMission'
+import DatasetDetails from './pages/DatasetDetails'
 import MissionExecution from './pages/MissionExecution'
 import MissionReport from './pages/MissionReport'
 import DataLibrary from './pages/DataLibrary'
@@ -37,6 +38,7 @@ function App() {
         <Route path="missions/:missionId" element={<MissionDetails />} />
         <Route path="missions/:missionId/execution" element={<MissionExecution />} />
         <Route path="missions/:missionId/report" element={<MissionReport />} />
+        <Route path="datasets/:datasetId" element={<DatasetDetails />} />
         <Route path="data-library" element={<DataLibrary />} />
         <Route path="settings" element={<Settings />} />
       </Route>

@@ -10,3 +10,7 @@ email-validator>=2.2
 python-jose[cryptography]>=3.3
 pwdlib[argon2]>=0.2
 python-multipart>=0.0.12
+pandas>=2.2
+numpy>=1.26
+openpyxl>=3.1
+chardet>=5.2

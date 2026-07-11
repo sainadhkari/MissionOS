@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -9,6 +9,7 @@ from app.models.dataset import Dataset
 from app.models.user import User
 from app.schemas.dataset import DatasetResponse
 from app.services import dataset_service, mission_service
+from app.services.dataset_profiling_pipeline import run_dataset_profiling
 
 mission_datasets_router = APIRouter(prefix="/missions/{mission_id}/datasets", tags=["datasets"])
 dataset_router = APIRouter(prefix="/datasets", tags=["datasets"])
@@ -19,12 +20,13 @@ dataset_router = APIRouter(prefix="/datasets", tags=["datasets"])
 )
 def upload_dataset(
     mission_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dataset:
     try:
-        return dataset_service.upload_dataset(
+        dataset = dataset_service.upload_dataset(
             db, user=current_user, mission_id=mission_id, upload=file
         )
     except mission_service.MissionNotFoundError as exc:
@@ -41,6 +43,9 @@ def upload_dataset(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="File exceeds the 25 MB size limit.",
         ) from exc
+
+    background_tasks.add_task(run_dataset_profiling, dataset.id)
+    return dataset
 
 
 @mission_datasets_router.get("", response_model=list[DatasetResponse])

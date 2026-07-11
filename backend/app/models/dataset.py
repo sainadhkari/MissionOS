@@ -12,6 +12,7 @@ from app.database.base import Base
 from app.models.enums import DatasetUploadStatus
 
 if TYPE_CHECKING:
+    from app.models.dataset_profile import DatasetProfile
     from app.models.mission import Mission
 
 
@@ -40,3 +41,6 @@ class Dataset(Base):
     )
 
     mission: Mapped[Mission] = relationship(back_populates="datasets")
+    profile: Mapped[DatasetProfile | None] = relationship(
+        back_populates="dataset", cascade="all, delete-orphan", uselist=False
+    )

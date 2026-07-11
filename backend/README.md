@@ -14,14 +14,15 @@ backend/
     core/             Cross-cutting app bootstrap (currently: logging_config.py)
     config/           Settings (pydantic-settings), get_settings() DI dependency
     database/         SQLAlchemy Base, engine, SessionLocal, get_db() dependency
-    models/           SQLAlchemy ORM models: User, Mission, Dataset (+ enums.py for status/priority)
-    schemas/          Pydantic request/response models (health.py, auth.py)
-    repositories/     Data-access layer, one class per model (currently: UserRepository)
-    services/         Business logic layer (currently: auth_service.py)
+    models/           SQLAlchemy ORM models: User, Mission, Dataset, DatasetProfile (+ enums.py)
+    schemas/          Pydantic request/response models (health.py, auth.py, mission.py, dataset.py)
+    repositories/     Data-access layer, one class per model
+    services/         Business logic layer, incl. dataset validation/profiling
     middleware/        Custom ASGI middleware (currently: request logging)
     utils/              Shared helpers (empty)
   alembic/              Migration tooling, wired to app.database.base.Base
     versions/           5f2e04b46f47_create_users_missions_datasets_tables.py
+                         2c4d6ce01b9b_add_dataset_profiles_table.py
   alembic.ini
   requirements.txt      Runtime dependencies
   requirements-dev.txt   + ruff (lint/format), for local dev and CI
@@ -116,6 +117,10 @@ that same network.
 - **datasets** — `id` (UUID pk), `mission_id` (FK → missions, indexed), `original_filename`,
   `stored_filename`, `file_type`, `file_size`, `upload_status` (native enum:
   uploaded/validating/ready/failed, indexed), `created_at`.
+- **dataset_profiles** — `id` (UUID pk), `dataset_id` (FK → datasets, unique, `ON DELETE CASCADE`),
+  `row_count`, `column_count`, `columns`/`missing_values`/`numeric_summary`/`categorical_summary`
+  (`JSONB`), `duplicate_row_count`, `encoding`, `delimiter`, `validation_errors` (`JSONB`, null
+  unless validation failed), `created_at`, `updated_at`. One dataset has at most one profile.
 
 All primary keys are `UUID`, generated client-side (`default=uuid.uuid4`). All timestamps
 are `TIMESTAMP WITH TIME ZONE` with `server_default=now()`.
@@ -196,14 +201,67 @@ after Starlette has already spooled the multipart body (there's no cheap way to 
 through FastAPI's `UploadFile` dependency), so it caps what gets persisted to permanent storage and
 written to the database, not the bytes received per request.
 
+## Dataset validation & profiling
+
+Reading and profiling an uploaded file's *contents* (as opposed to just its extension/size,
+covered above) lives in `app/services/dataset_validation_service.py`,
+`app/services/dataset_profile_service.py`, `app/services/dataset_profiling_pipeline.py`, and the
+`dataset_profiles` table (`app/models/dataset_profile.py`).
+
+**Pipeline**: `POST /missions/{mission_id}/datasets` schedules `run_dataset_profiling` as a
+FastAPI `BackgroundTask` after the upload response's DB transaction commits, so the upload request
+itself stays fast. The task runs in Starlette's thread pool (it's a plain `def`, not `async def`)
+and opens its **own** `SessionLocal()` — the request-scoped session from `get_db` is already closed
+by the time it runs. It drives `Dataset.upload_status` through the full lifecycle:
+`uploaded` (set at upload time) → `validating` (set the moment the task starts) → `ready` (parsed
+successfully — this is "Validated") or `failed` ("Validation Failed"). A catch-all `except
+Exception` around the task body guards against `validating` getting stuck forever if profiling
+itself has a bug — there's no HTTP response for an unhandled exception to surface through here.
+
+**Validation** (`dataset_validation_service.py`): reads the file at its stored path and parses it
+with `pandas`, dispatching on `Dataset.file_type`:
+- **CSV** — `chardet` detects the encoding, `csv.Sniffer` detects the delimiter (from `,`/`;`/tab/`|`,
+  falling back to `,` if sniffing fails on a small/ambiguous sample), then `pd.read_csv`.
+- **Excel** — `pd.read_excel(engine="openpyxl")`.
+- **JSON** — `json.loads` then `pd.json_normalize` (accepts a top-level array of objects, or a
+  single object treated as a one-row dataset).
+
+An empty file (0 bytes) or a file with zero *columns* raises `DatasetValidationError`
+(→ `failed`); a file with headers but zero *data rows* parses fine (→ `ready`, `row_count: 0`) since
+that's a structurally valid, if trivial, dataset. Any parse failure (corrupt CSV, non-Excel bytes
+in a `.xlsx`, malformed JSON) is caught and turned into a human-readable message in
+`validation_errors` rather than propagating.
+
+**Profiling** (`dataset_profile_service.py`): given a parsed `DataFrame`, computes and stores one
+`DatasetProfile` row (1:1 with `Dataset`, `ON DELETE CASCADE`):
+- `row_count` / `column_count`
+- `columns` — per column: `name`, `dtype` (pandas dtype as a string), `category`, `missing_count`
+- `missing_values` — missing count by column name
+- `duplicate_row_count` — `df.duplicated().sum()`
+- `numeric_summary` — per numeric column: `count`/`min`/`max`/`mean`/`median`/`std`
+- `categorical_summary` — per categorical column: `unique_count` + top 5 values with counts
+- `encoding` / `delimiter` (CSV only; `None` otherwise)
+
+**Column classification** is a simple heuristic, not a schema declaration: a column is `date` if
+pandas already parsed it as `datetime64`, or if ≥80% of its non-null values successfully parse via
+`pd.to_datetime(..., errors="coerce")`; `numeric` if pandas' dtype says so; everything else is
+`categorical`. `_to_jsonable` recursively converts numpy scalars (`int64`, `float64`, `Timestamp`,
+...) to native Python and NaN/NaT to `None`, since neither round-trips through the `JSONB` columns
+otherwise.
+
+**API surface**: no new endpoints — `DatasetResponse` (used by both the list and single-dataset
+routes) now embeds `profile: DatasetProfileResponse | None`, so the existing ownership-scoped
+routes are the only way to reach profile data; there's no separate unauthenticated profile lookup
+to forget to guard.
+
 ## Not implemented yet
 
 Deliberately absent so far:
 
-- Business logic beyond auth, mission CRUD, and dataset upload/list/delete (AI orchestration,
-  mission execution, reports, etc.)
-- AI / LLM integration, embeddings, RAG
-- Parsing or validating the *contents* of an uploaded file (only its extension and size are
-  checked — `upload_status` stays `uploaded`; nothing transitions it to `validating`/`ready`/`failed`)
+- Business logic beyond auth, mission CRUD, dataset upload/list/delete, and dataset
+  validation/profiling (mission execution, reports, etc.)
+- AI / LLM integration, embeddings, RAG — profiling is descriptive statistics only, no model calls
+- A job queue — the profiling pipeline is a single in-process `BackgroundTask`; it doesn't survive
+  a server restart mid-task, isn't retried on failure, and doesn't scale past one process
 - Refresh tokens / token revocation / logout invalidation (logout is client-side only —
   the frontend discards the token; the JWT itself remains valid until it expires)

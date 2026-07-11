@@ -9,7 +9,7 @@ import Banner from '../components/Banner'
 import EmptyState from '../components/EmptyState'
 import Button, { buttonClasses } from '../components/Button'
 import DatasetUploader from '../components/DatasetUploader'
-import { ROUTES, editMissionPath } from '../constants/routes'
+import { ROUTES, editMissionPath, datasetDetailsPath } from '../constants/routes'
 import { missionService } from '../services/mission'
 import { datasetService } from '../services/dataset'
 import { useMissionDatasets } from '../hooks/useMissionDatasets'
@@ -239,9 +239,12 @@ function MissionDetailsView({
             {datasets.data.map((dataset) => (
               <li key={dataset.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-neutral-900">
+                  <Link
+                    to={datasetDetailsPath(dataset.id)}
+                    className="block truncate text-sm font-medium text-neutral-900 hover:text-primary-600"
+                  >
                     {dataset.original_filename}
-                  </p>
+                  </Link>
                   <p className="mt-0.5 text-xs text-neutral-500">
                     {dataset.file_type.toUpperCase()} · {formatFileSize(dataset.file_size)} ·{' '}
                     {formatDate(dataset.created_at)}
