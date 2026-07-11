@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "dev-secret-change-me"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    # Relative to the backend/ directory, regardless of the process's cwd.
+    upload_dir: str = "storage/uploads"
+    max_upload_size_bytes: int = 25 * 1024 * 1024
 
     @property
     def cors_origins_list(self) -> list[str]:

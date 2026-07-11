@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, health, missions
+from app.api import auth, datasets, health, missions
 from app.config.settings import settings
 from app.core.logging_config import configure_logging
 from app.middleware.logging_middleware import RequestLoggingMiddleware
@@ -31,3 +31,5 @@ app.add_middleware(RequestLoggingMiddleware)
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(missions.router)
+app.include_router(datasets.mission_datasets_router)
+app.include_router(datasets.dataset_router)

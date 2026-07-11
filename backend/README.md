@@ -160,13 +160,50 @@ header) if the token is missing, invalid, expired, or the user no longer exists.
 (`.env`'s is generated via `secrets.token_urlsafe`); every deployed environment must set
 its own.
 
+## Missions
+
+CRUD for the `missions` table lives in `app/api/missions.py`, `app/services/mission_service.py`,
+and `app/repositories/mission_repository.py`. Every route requires `get_current_user`;
+`MissionRepository.get_for_user` filters by `mission_id` **and** `user_id` in the same query, so a
+mission owned by someone else and a nonexistent mission are indistinguishable — both come back as
+`None` from the repository and both surface as a generic 404 from the API. `MissionResponse` omits
+`user_id` for the same reason.
+
+## Datasets
+
+Upload/list/delete for the `datasets` table lives in `app/api/datasets.py`,
+`app/services/dataset_service.py`, `app/repositories/dataset_repository.py`, and
+`app/core/storage.py`. A dataset always belongs to a mission, so ownership is transitive:
+
+- `POST /missions/{mission_id}/datasets` and `GET /missions/{mission_id}/datasets` first resolve
+  the mission via `mission_service.get_mission` (owner-scoped, 404 if not owned), then operate on
+  its datasets.
+- `GET /datasets/{dataset_id}` and `DELETE /datasets/{dataset_id}` aren't nested under a mission
+  path, so `DatasetRepository.get_owned` joins `Dataset` to `Mission` and filters on
+  `Mission.user_id` directly in the query — same "unowned and nonexistent look identical" pattern
+  as missions.
+
+**Storage**: `app/core/storage.py` writes uploaded files to `storage/uploads/` (resolved relative
+to the `backend/` directory, not the process's cwd, via `Path(__file__).resolve().parents[2]`)
+under a `uuid4()`-derived filename — the original filename is kept only as DB metadata
+(`original_filename`) and is never used to build a filesystem path, so there's no overwrite risk
+and no path-traversal surface from a hostile filename. `storage/uploads/` is gitignored except for
+a `.gitkeep`.
+
+**Validation**: only `.csv`, `.xlsx`, and `.json` extensions are accepted (415 otherwise), and
+files over `settings.max_upload_size_bytes` (25 MB) are rejected (413). The size check happens
+after Starlette has already spooled the multipart body (there's no cheap way to abort mid-stream
+through FastAPI's `UploadFile` dependency), so it caps what gets persisted to permanent storage and
+written to the database, not the bytes received per request.
+
 ## Not implemented yet
 
 Deliberately absent so far:
 
-- Mission CRUD or any other domain endpoints
-- Business logic beyond authentication (mission workflow, AI orchestration, etc.)
-- AI / LLM integration
-- File upload handling
+- Business logic beyond auth, mission CRUD, and dataset upload/list/delete (AI orchestration,
+  mission execution, reports, etc.)
+- AI / LLM integration, embeddings, RAG
+- Parsing or validating the *contents* of an uploaded file (only its extension and size are
+  checked — `upload_status` stays `uploaded`; nothing transitions it to `validating`/`ready`/`failed`)
 - Refresh tokens / token revocation / logout invalidation (logout is client-side only —
   the frontend discards the token; the JWT itself remains valid until it expires)

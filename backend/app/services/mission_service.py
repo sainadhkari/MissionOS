@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
+from app.core.storage import delete_upload
 from app.models.enums import MissionPriority, MissionStatus
 from app.models.mission import Mission
 from app.models.user import User
@@ -86,6 +87,11 @@ def delete_mission(db: Session, *, user: User, mission_id: uuid.UUID) -> None:
     mission = repo.get_for_user(mission_id, user.id)
     if mission is None:
         raise MissionNotFoundError(mission_id)
+
+    # DB rows cascade via ON DELETE CASCADE, but the files on disk don't —
+    # remove them explicitly so deleting a mission never orphans storage.
+    for dataset in mission.datasets:
+        delete_upload(dataset.stored_filename)
 
     repo.delete(mission)
     db.commit()
