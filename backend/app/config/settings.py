@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     # for a simple comma list. Split on demand via cors_origins_list below.
     cors_origins: str = "http://localhost:5173"
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/missionos"
+    # Dev-only default — every deployed environment must override this via .env.
+    jwt_secret_key: str = "dev-secret-change-me"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
 
     @property
     def cors_origins_list(self) -> list[str]:

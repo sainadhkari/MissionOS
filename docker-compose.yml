@@ -1,0 +1,42 @@
+networks:
+  missionos-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: missionos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: missionos
+      POSTGRES_USER: missionos
+      POSTGRES_PASSWORD: missionos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - missionos-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U missionos -d missionos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: missionos-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@missionos.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_ALLOW_SPECIAL_EMAIL_DOMAINS: "['local']"
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - missionos-network

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health
+from app.api import auth, health
 from app.config.settings import settings
 from app.core.logging_config import configure_logging
 from app.middleware.logging_middleware import RequestLoggingMiddleware
@@ -29,3 +29,4 @@ app.add_middleware(
 app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(health.router)
+app.include_router(auth.router)

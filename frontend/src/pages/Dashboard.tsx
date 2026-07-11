@@ -12,8 +12,11 @@ import {
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import EmptyState from '../components/EmptyState'
+import Badge from '../components/Badge'
+import Loading from '../components/Loading'
 import { buttonClasses } from '../components/Button'
 import { ROUTES } from '../constants/routes'
+import { useHealthCheck } from '../hooks/useHealthCheck'
 import type { Mission } from '../types/Mission'
 import type { Activity } from '../types/Activity'
 
@@ -45,10 +48,11 @@ const statusCards = [
   { label: 'Active Missions', value: '—', icon: ListTodo },
   { label: 'AI Agents', value: 'Ready', icon: Bot },
   { label: 'Data Sources', value: '—', icon: Database },
-  { label: 'System', value: 'Healthy', icon: Server },
 ]
 
 function Dashboard() {
+  const backendStatus = useHealthCheck()
+
   return (
     <div>
       <PageHeader
@@ -87,6 +91,18 @@ function Dashboard() {
             <p className="mt-3 text-2xl font-semibold text-neutral-900">{value}</p>
           </Card>
         ))}
+
+        <Card>
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-neutral-500">Backend Status</span>
+            <Server className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+          </div>
+          <div className="mt-3">
+            {backendStatus === 'loading' && <Loading />}
+            {backendStatus === 'online' && <Badge variant="success">Healthy</Badge>}
+            {backendStatus === 'offline' && <Badge variant="danger">Backend Offline</Badge>}
+          </div>
+        </Card>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">

@@ -7,3 +7,8 @@ export interface ApiError {
   message: string
   code?: string
 }
+
+export interface HealthStatus {
+  status: string
+  service: string
+}

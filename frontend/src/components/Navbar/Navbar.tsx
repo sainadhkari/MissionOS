@@ -1,11 +1,21 @@
-import { Boxes, Menu, User } from 'lucide-react'
+import { Boxes, LogOut, Menu, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { APP_NAME } from '../../constants/app'
+import { ROUTES } from '../../constants/routes'
+import { authService } from '../../services/auth'
 
 interface NavbarProps {
   onMenuClick: () => void
 }
 
 function Navbar({ onMenuClick }: NavbarProps) {
+  const navigate = useNavigate()
+
+  function handleLogout() {
+    authService.logout()
+    navigate(ROUTES.login, { replace: true })
+  }
+
   return (
     <header className="border-b border-neutral-200 bg-white shadow-xs">
       <div className="flex items-center justify-between px-4 py-3 sm:px-6">
@@ -23,9 +33,20 @@ function Navbar({ onMenuClick }: NavbarProps) {
           </span>
           <span className="text-base font-semibold text-neutral-900">{APP_NAME}</span>
         </div>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
-          <User className="h-4 w-4" aria-hidden="true" />
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+            <User className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100"
+            aria-label="Log out"
+            title="Log out"
+          >
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </header>
   )
