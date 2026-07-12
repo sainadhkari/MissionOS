@@ -4,11 +4,13 @@ import Card from '../Card'
 import Badge from '../Badge'
 import Button from '../Button'
 import Banner from '../Banner'
+import ExportReportMenu from '../ExportReportMenu'
 import { formatDate } from '../../utils/date'
 import { analysisStatusBadgeVariant, analysisStatusLabel, RUNNING_STAGE_MESSAGES } from '../../utils/analysis'
 import type { AnalysisViewStatus, MissionAnalysis } from '../../types/Analysis'
 
 interface AnalysisStatusCardProps {
+  missionId: string
   viewStatus: AnalysisViewStatus
   analysis: MissionAnalysis | null
   onStart: () => void
@@ -32,6 +34,7 @@ function useRotatingMessage(active: boolean): string {
 }
 
 function AnalysisStatusCard({
+  missionId,
   viewStatus,
   analysis,
   onStart,
@@ -44,9 +47,12 @@ function AnalysisStatusCard({
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-neutral-900">AI Analysis</h2>
-        <Badge variant={analysisStatusBadgeVariant(viewStatus)}>
-          {analysisStatusLabel(viewStatus)}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={analysisStatusBadgeVariant(viewStatus)}>
+            {analysisStatusLabel(viewStatus)}
+          </Badge>
+          {viewStatus === 'completed' && <ExportReportMenu missionId={missionId} />}
+        </div>
       </div>
 
       {startError && (

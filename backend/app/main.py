@@ -25,6 +25,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Content-Disposition isn't in the CORS default-exposed header set, so
+    # without this the frontend's report download can't read the filename
+    # the backend chose (app/api/mission_analysis.py's export_report).
+    expose_headers=["Content-Disposition"],
 )
 app.add_middleware(RequestLoggingMiddleware)
 

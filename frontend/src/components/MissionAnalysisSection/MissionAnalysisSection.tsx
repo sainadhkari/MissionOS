@@ -38,6 +38,7 @@ function MissionAnalysisSection({ missionId }: MissionAnalysisSectionProps) {
   return (
     <div className="mt-4 flex flex-col gap-4">
       <AnalysisStatusCard
+        missionId={missionId}
         viewStatus={viewStatus}
         analysis={analysis}
         onStart={polling.start}

@@ -1,14 +1,15 @@
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.database.session import get_db
 from app.models.mission_analysis import MissionAnalysis
 from app.models.user import User
+from app.reports.models import ReportFormat
 from app.schemas.mission_analysis import MissionAnalysisResponse
-from app.services import mission_analysis_service, mission_service
+from app.services import mission_analysis_service, mission_service, report_service
 
 router = APIRouter(prefix="/missions/{mission_id}", tags=["analysis"])
 
@@ -56,3 +57,37 @@ def get_analysis(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="No analysis found for this mission"
         ) from exc
+
+
+@router.get("/analysis/report")
+def export_report(
+    mission_id: uuid.UUID,
+    report_format: ReportFormat = Query(..., alias="format"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    service = report_service.ReportService()
+    try:
+        data = service.build_report_data(db, user=current_user, mission_id=mission_id)
+    except mission_service.MissionNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found"
+        ) from exc
+    except mission_analysis_service.AnalysisNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="No analysis found for this mission"
+        ) from exc
+    except report_service.AnalysisNotCompletedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Analysis has not completed yet — a report can only be generated from a "
+            "completed analysis",
+        ) from exc
+
+    content, media_type = service.render(data, report_format)
+    filename = f"mission-{mission_id}-report.{report_format.value}"
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

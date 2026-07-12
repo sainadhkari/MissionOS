@@ -1,5 +1,7 @@
 export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'failed'
 
+export type ReportFormat = 'pdf' | 'html'
+
 export interface BusinessAnalysis {
   business_problem: string
   key_opportunities: string[]

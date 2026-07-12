@@ -579,19 +579,79 @@ both endpoints for a mission they don't own; a mission with no validated dataset
 **How this prepares MissionOS for future dashboards and reporting**: any UI that wants to show
 analysis progress or results now has exactly one thing to poll — `GET /missions/{id}/analysis` —
 returning a status machine (`pending`/`running`/`completed`/`failed`) plus fully typed, structured
-data for each stage, not prose to re-parse. A future report-generation ticket (the still-unbuilt
-`ExecutiveReport`) can read a `completed` `MissionAnalysis` row directly instead of re-running the
-pipeline or re-deriving structure from free text. A future dashboard can show per-mission analysis
-status across many missions with one query (`status`, indexed) without touching `app.ai` at all.
+data for each stage, not prose to re-parse. A future dashboard can show per-mission analysis status
+across many missions with one query (`status`, indexed) without touching `app.ai` at all. (Ticket-015,
+below, is that "future report-generation ticket" — it reads a `completed` `MissionAnalysis` row
+directly, exactly as anticipated here.)
+
+## AI Report Export (Ticket-015)
+
+Generates downloadable HTML/PDF reports from an already-`completed` `MissionAnalysis` — no AI
+calls, no `AnalysisOrchestrator`, no agents involved. `MissionAnalysis` (persisted in Ticket-013)
+is the only input.
+
+**Endpoint**: `GET /missions/{mission_id}/analysis/report?format=pdf|html` (added to the existing
+`app/api/mission_analysis.py` router, alongside `POST /analyze` and `GET /analysis` — same
+resource family, same file). `format` is typed as the `ReportFormat` enum via FastAPI's `Query(...)`,
+so an invalid or missing value never reaches application code — FastAPI itself returns a
+structured 422 before `export_report` runs. Ownership (404), missing analysis (404), and
+not-yet-completed analysis (409, via the new `AnalysisNotCompletedError`) are all checked before
+any rendering happens.
+
+**Architecture** (`app/reports/`, a self-contained package mirroring `app/ai/`'s shape, plus
+`ReportService` in `app/services/` as the orchestrating facade every other feature's API route
+already calls into):
+- **`app/reports/models.py`** — `ReportData` (mission info + all four typed analyses,
+  `generated_at`) and `ReportFormat`. `ReportData`'s four analysis fields are non-optional,
+  unlike `MissionAnalysis`'s — building one is only possible once `ReportService` has already
+  confirmed the analysis is `completed`.
+- **`app/reports/templates/report.html`** — the one place report layout lives; a single Jinja2
+  template drives *both* formats, so HTML and PDF can never show different content, only
+  different pagination.
+- **`app/reports/html_renderer.py`** — `render_html(data, is_pdf=...)` renders the template.
+  Autoescaping is on, so agent-authored free text can't be interpreted as markup in the output.
+- **`app/reports/pdf_renderer.py`** — `render_pdf(html)` converts already-rendered HTML to PDF
+  bytes via `xhtml2pdf`, isolated behind one function so swapping the PDF engine later touches
+  only this file.
+- **`app/reports/exceptions.py`** — `ReportError` (base), `UnsupportedReportFormatError`,
+  `ReportGenerationError`.
+- **`app/services/report_service.py`** — `ReportService.build_report_data()` (ownership +
+  completeness checks, then assembles `ReportData` from `Mission` + `MissionAnalysis`) and
+  `.render(data, format)` (dispatches to the right renderer, returns `(bytes, content_type)`).
+  `_CONTENT_TYPES` is a `dict[ReportFormat, str]` — adding DOCX or Markdown later means one new
+  renderer module, one new dict entry, and one new `if` branch in `render()`; nothing about
+  `build_report_data`, the template, the API route, or the other renderers changes.
+
+**PDF generation**: `xhtml2pdf` was chosen over `weasyprint` (heavy, fragile native-library
+install on Windows) and headless-Chromium approaches (a full browser dependency for one feature
+is disproportionate) — it's pure-Python, installs with plain `pip`, and consumes HTML directly.
+It supports a CSS-Paged-Media-like `@page`/`@frame` block plus `<pdf:pagenumber/>`/
+`<pdf:pagecount/>` tags for real page numbers — verified live (a 3-page test PDF correctly showed
+"Page 1 of 3" / "Page 2 of 3" / "Page 3 of 3"), not just included aspirationally. Those PDF-only
+constructs are wrapped in `{% if is_pdf %}` in the template so they never leak into the HTML
+export (confirmed: the HTML output contains no `pdf:pagenumber` tags or invalid `@page` CSS).
+
+**CORS**: `app/main.py`'s `CORSMiddleware` gained `expose_headers=["Content-Disposition"]` —
+without it, the browser receives the header but JS can't read it (it's not in the CORS
+default-exposed set), so the frontend couldn't recover the filename the backend chose. This is
+the one non-report-package change this ticket needed.
+
+**`ExecutiveReport`** (`app/ai/models.py`, from Ticket-012A) is *not* reused here — it remains
+exactly as it was, unused. It's a different, coarser shape (`title`/`summary`/`recommendations`
+wrapping a whole `AnalysisResult`) than what the ticket's exact "Report Content" specification
+needs (every individual field, broken out, per section). `app/ai/models.py` was left untouched
+entirely, consistent with "Do NOT modify backend AI logic."
 
 ## Not implemented yet
 
 Deliberately absent so far:
 
 - Business logic beyond auth, mission CRUD, dataset upload/list/delete, dataset
-  validation/profiling, and AI mission analysis (reports, etc.)
-- The `ExecutiveReport` artifact (title/summary/recommendations derived from a completed
-  `AnalysisResult`) — still just a data contract, nothing constructs one
+  validation/profiling, AI mission analysis, and HTML/PDF report export
+- DOCX/Markdown report export — the architecture (`app/reports/`) anticipates them but doesn't
+  implement them
+- The `ExecutiveReport` model in `app/ai/models.py` — still just an unused, unconstructed data
+  contract from Ticket-012A; Ticket-015's report export uses its own `ReportData` model instead
 - Embeddings, RAG, LangGraph
 - A job queue — the profiling pipeline is a single in-process `BackgroundTask`; it doesn't survive
   a server restart mid-task, isn't retried on failure, and doesn't scale past one process
