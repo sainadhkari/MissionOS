@@ -21,6 +21,10 @@ export function editMissionPath(missionId: string): string {
   return `/missions/${missionId}/edit`
 }
 
+export function missionReportPath(missionId: string): string {
+  return `/missions/${missionId}/report`
+}
+
 export function datasetDetailsPath(datasetId: string): string {
   return `/datasets/${datasetId}`
 }

@@ -32,7 +32,7 @@ const navGroups: NavGroup[] = [
 
 const aiCenterItems: { label: string; icon: LucideIcon }[] = [
   { label: 'Mission Execution', icon: PlayCircle },
-  { label: 'Mission Report', icon: FileText },
+  { label: 'Executive Dashboard', icon: FileText },
 ]
 
 const linkClassName = ({ isActive }: { isActive: boolean }) =>

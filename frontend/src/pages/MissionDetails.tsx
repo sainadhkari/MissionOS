@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, Database, Pencil, Trash2 } from 'lucide-react'
+import { AlertTriangle, BarChart3, Database, Pencil, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import Badge from '../components/Badge'
@@ -10,7 +10,7 @@ import EmptyState from '../components/EmptyState'
 import Button, { buttonClasses } from '../components/Button'
 import DatasetUploader from '../components/DatasetUploader'
 import MissionAnalysisSection from '../components/MissionAnalysisSection'
-import { ROUTES, editMissionPath, datasetDetailsPath } from '../constants/routes'
+import { ROUTES, editMissionPath, missionReportPath, datasetDetailsPath } from '../constants/routes'
 import { missionService } from '../services/mission'
 import { datasetService } from '../services/dataset'
 import { useMissionDatasets } from '../hooks/useMissionDatasets'
@@ -153,6 +153,10 @@ function MissionDetailsView({
         subtitle={mission.business_domain}
         actions={
           <>
+            <Link to={missionReportPath(mission.id)} className={buttonClasses('outline', 'sm')}>
+              <BarChart3 className="h-4 w-4" aria-hidden="true" />
+              Executive Dashboard
+            </Link>
             <Link to={editMissionPath(mission.id)} className={buttonClasses('outline', 'sm')}>
               <Pencil className="h-4 w-4" aria-hidden="true" />
               Edit
