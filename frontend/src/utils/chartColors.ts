@@ -20,3 +20,10 @@ export const CHART_PALETTE = [
 
 export const CHART_GRID_COLOR = '#e2e8f0' // neutral-200
 export const CHART_AXIS_TEXT_COLOR = '#64748b' // neutral-500
+
+// Dark-mode counterparts -- Recharts renders literal SVG attributes, so
+// these can't be Tailwind `dark:` classes; components pick between the two
+// sets based on `useTheme().resolvedTheme`.
+export const CHART_GRID_COLOR_DARK = '#334155' // neutral-700
+export const CHART_AXIS_TEXT_COLOR_DARK = '#94a3b8' // neutral-400
+export const CHART_TOOLTIP_BG_DARK = '#1e293b' // neutral-800

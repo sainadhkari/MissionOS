@@ -7,7 +7,6 @@ export const ROUTES = {
   missionHistory: '/missions/history',
   missionDetails: '/missions/:missionId',
   editMission: '/missions/:missionId/edit',
-  missionExecution: '/missions/:missionId/execution',
   missionReport: '/missions/:missionId/report',
   dataLibrary: '/data-library',
   datasetDetails: '/datasets/:datasetId',

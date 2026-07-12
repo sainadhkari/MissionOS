@@ -9,10 +9,10 @@ interface BusinessAnalysisCardProps {
 function BusinessAnalysisCard({ analysis }: BusinessAnalysisCardProps) {
   return (
     <Card>
-      <h2 className="mb-4 text-sm font-semibold text-neutral-900">Business Analysis</h2>
+      <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Business Analysis</h2>
       <div className="flex flex-col gap-4">
         <AnalysisSection title="Business Problem">
-          <p className="text-sm text-neutral-700">{analysis.business_problem}</p>
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">{analysis.business_problem}</p>
         </AnalysisSection>
         <AnalysisSection title="Key Opportunities">
           <BulletList items={analysis.key_opportunities} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, BarChart3, Database, Pencil, Trash2 } from 'lucide-react'
+import { AlertTriangle, BarChart3, Briefcase, Calendar, Database, Flag, Pencil, Target, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import Badge from '../components/Badge'
@@ -25,7 +25,7 @@ type LoadState =
   | { status: 'error'; message: string }
   | { status: 'success'; mission: Mission }
 
-const DETAIL_FIELDS: { key: keyof Mission; label: string }[] = [
+const GOAL_FIELDS: { key: keyof Mission; label: string }[] = [
   { key: 'problem_statement', label: 'Problem Statement' },
   { key: 'objective', label: 'Business Objective' },
   { key: 'expected_output', label: 'Expected Output' },
@@ -146,6 +146,43 @@ function MissionDetailsView({
     }
   }
 
+  const datasetCount = datasets.status === 'success' ? datasets.data.length : null
+
+  const overviewCards = [
+    {
+      label: 'Status',
+      icon: Flag,
+      content: <Badge variant={missionStatusBadgeVariant(mission.status)}>{missionStatusLabel(mission.status)}</Badge>,
+    },
+    {
+      label: 'Priority',
+      icon: Target,
+      content: (
+        <Badge variant={missionPriorityBadgeVariant(mission.priority)}>{missionPriorityLabel(mission.priority)}</Badge>
+      ),
+    },
+    {
+      label: 'Datasets',
+      icon: Database,
+      content: (
+        <span className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+          {datasetCount ?? '—'}
+        </span>
+      ),
+    },
+    {
+      label: 'Timeline',
+      icon: Calendar,
+      content: (
+        <span className="text-xs text-neutral-600 dark:text-neutral-300">
+          Created {formatDate(mission.created_at)}
+          <br />
+          Updated {formatDate(mission.updated_at)}
+        </span>
+      ),
+    },
+  ]
+
   return (
     <div>
       <PageHeader
@@ -180,26 +217,30 @@ function MissionDetailsView({
         </Banner>
       )}
 
-      <Card>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={missionStatusBadgeVariant(mission.status)}>
-            {missionStatusLabel(mission.status)}
-          </Badge>
-          <Badge variant={missionPriorityBadgeVariant(mission.priority)}>
-            {missionPriorityLabel(mission.priority)} priority
-          </Badge>
-          <span className="text-xs text-neutral-500">
-            Created {formatDate(mission.created_at)} · Updated {formatDate(mission.updated_at)}
-          </span>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {overviewCards.map(({ label, icon: Icon, content }) => (
+          <Card key={label}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{label}</span>
+              <Icon className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+            </div>
+            <div className="mt-3">{content}</div>
+          </Card>
+        ))}
+      </div>
 
-        <div className="mt-6 flex flex-col gap-5">
-          {DETAIL_FIELDS.map(({ key, label }) => (
+      <Card className="mt-4">
+        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+          <Briefcase className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+          Business Goal
+        </h2>
+        <div className="flex flex-col gap-5">
+          {GOAL_FIELDS.map(({ key, label }) => (
             <div key={key}>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
                 {label}
-              </h2>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700">
+              </h3>
+              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
                 {mission[key] as string}
               </p>
             </div>
@@ -209,7 +250,7 @@ function MissionDetailsView({
 
       <Card className="mt-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-neutral-900">Datasets</h2>
+          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Datasets</h2>
           <DatasetUploader
             missionId={mission.id}
             onUploaded={(dataset) => {
@@ -240,17 +281,17 @@ function MissionDetailsView({
           />
         )}
         {datasets.status === 'success' && datasets.data.length > 0 && (
-          <ul className="flex flex-col divide-y divide-neutral-200">
+          <ul className="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-800">
             {datasets.data.map((dataset) => (
               <li key={dataset.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   <Link
                     to={datasetDetailsPath(dataset.id)}
-                    className="block truncate text-sm font-medium text-neutral-900 hover:text-primary-600"
+                    className="block truncate text-sm font-medium text-neutral-900 hover:text-primary-600 dark:text-neutral-100 dark:hover:text-primary-400"
                   >
                     {dataset.original_filename}
                   </Link>
-                  <p className="mt-0.5 text-xs text-neutral-500">
+                  <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
                     {dataset.file_type.toUpperCase()} · {formatFileSize(dataset.file_size)} ·{' '}
                     {formatDate(dataset.created_at)}
                   </p>
@@ -262,7 +303,7 @@ function MissionDetailsView({
                   type="button"
                   onClick={() => handleDeleteDataset(dataset.id)}
                   disabled={deletingDatasetId === dataset.id}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-danger-50 hover:text-danger-600 disabled:pointer-events-none disabled:opacity-50"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-danger-50 hover:text-danger-600 disabled:pointer-events-none disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-danger-950/40 dark:hover:text-danger-400"
                   aria-label={`Delete ${dataset.original_filename}`}
                   title="Delete"
                 >

@@ -95,7 +95,7 @@ function EditMission() {
 
           <MissionForm values={values!} onChange={setValues} showStatus />
 
-          <FormActions className="mt-3 border-t border-neutral-200 pt-6">
+          <FormActions className="mt-3 border-t border-neutral-200 pt-6 dark:border-neutral-800">
             <Link to={missionDetailsPath(missionId!)} className={buttonClasses('outline')}>
               Cancel
             </Link>

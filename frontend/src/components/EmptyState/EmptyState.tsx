@@ -12,12 +12,14 @@ interface EmptyStateProps {
 function EmptyState({ icon: Icon, title, description, action, className = '' }: EmptyStateProps) {
   return (
     <div className={`flex flex-col items-center justify-center gap-3 py-10 text-center ${className}`}>
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </span>
       <div>
-        <p className="text-sm font-medium text-neutral-900">{title}</p>
-        {description && <p className="mt-1 max-w-xs text-sm text-neutral-500">{description}</p>}
+        <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{title}</p>
+        {description && (
+          <p className="mt-1 max-w-xs text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
+        )}
       </div>
       {action}
     </div>

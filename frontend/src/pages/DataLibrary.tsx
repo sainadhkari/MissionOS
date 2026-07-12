@@ -1,24 +1,33 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Database, FileJson, FileSpreadsheet, Table as TableIcon, UploadCloud } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  Database,
+  FileJson,
+  FileSpreadsheet,
+  Table as TableIcon,
+  UploadCloud,
+} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
-import Loading from '../components/Loading'
 import Banner from '../components/Banner'
 import Badge from '../components/Badge'
 import EmptyState from '../components/EmptyState'
 import Select from '../components/Select'
 import DatasetUploader from '../components/DatasetUploader'
-import { Table, TableBody, TableHeader, TableHeaderCell, TableRow, TableCell } from '../components/Table'
+import AnimatedCounter from '../components/AnimatedCounter'
+import { ListCardSkeleton } from '../components/Skeleton'
 import { buttonClasses } from '../components/Button'
 import { missionDetailsPath, datasetDetailsPath } from '../constants/routes'
 import { useMissions } from '../hooks/useMissions'
+import { useAllDatasets } from '../hooks/useAllDatasets'
 import { datasetService } from '../services/dataset'
 import { getErrorMessage } from '../utils/http'
 import { formatDate } from '../utils/date'
-import { datasetStatusBadgeVariant, datasetStatusLabel, formatFileSize } from '../utils/dataset'
-import type { Dataset } from '../types/Dataset'
-import type { Mission } from '../types/Mission'
+import { columnCategoryBadgeVariant, columnCategoryLabel, datasetStatusBadgeVariant, datasetStatusLabel, formatFileSize } from '../utils/dataset'
+import { computeDatasetQuality } from '../utils/executiveDashboard'
+import type { DatasetWithMission } from '../hooks/useAllDatasets'
 
 const SUPPORTED_FILE_TYPES = [
   { label: 'CSV', icon: FileSpreadsheet },
@@ -26,59 +35,16 @@ const SUPPORTED_FILE_TYPES = [
   { label: 'JSON', icon: FileJson },
 ]
 
-interface DatasetRow extends Dataset {
-  missionTitle: string
-}
-
-type DatasetsState =
-  | { status: 'loading' }
-  | { status: 'error'; message: string }
-  | { status: 'success'; data: DatasetRow[] }
-
 function DataLibrary() {
   const missions = useMissions()
   const missionsData = missions.status === 'success' ? missions.data : null
+  const datasetsState = useAllDatasets(missionsData)
 
-  const [datasetsState, setDatasetsState] = useState<DatasetsState>({ status: 'loading' })
   const [selectedMissionId, setSelectedMissionId] = useState('')
   const [banner, setBanner] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-
-  const loadDatasets = useCallback((missionList: Mission[]) => {
-    Promise.all(
-      missionList.map((mission) =>
-        datasetService
-          .listForMission(mission.id)
-          .then((datasets) =>
-            datasets.map((dataset) => ({ ...dataset, missionTitle: mission.title }))
-          )
-      )
-    )
-      .then((perMission) => {
-        const combined = perMission
-          .flat()
-          .sort((a, b) => b.created_at.localeCompare(a.created_at))
-        setDatasetsState({ status: 'success', data: combined })
-      })
-      .catch((err) =>
-        setDatasetsState({
-          status: 'error',
-          message: getErrorMessage(err, 'Could not load datasets.'),
-        })
-      )
-  }, [])
-
-  useEffect(() => {
-    if (!missionsData) return
-    loadDatasets(missionsData)
-  }, [missionsData, loadDatasets])
-
-  function refetchDatasets() {
-    if (!missionsData) return
-    setDatasetsState({ status: 'loading' })
-    loadDatasets(missionsData)
-  }
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function handleDelete(datasetId: string) {
     if (!window.confirm('Delete this dataset? This cannot be undone.')) return
@@ -88,7 +54,7 @@ function DataLibrary() {
     try {
       await datasetService.remove(datasetId)
       setBanner('Dataset deleted.')
-      refetchDatasets()
+      datasetsState.refetch()
     } catch (err) {
       setActionError(getErrorMessage(err, 'Could not delete dataset.'))
     } finally {
@@ -97,11 +63,10 @@ function DataLibrary() {
   }
 
   const effectiveMissionId = selectedMissionId || missionsData?.[0]?.id || ''
-  const totalSize =
-    datasetsState.status === 'success'
-      ? datasetsState.data.reduce((sum, dataset) => sum + dataset.file_size, 0)
-      : 0
-  const recentUploads = datasetsState.status === 'success' ? datasetsState.data.slice(0, 5) : []
+  const datasets: DatasetWithMission[] = datasetsState.status === 'success' ? datasetsState.data : []
+  const totalSize = datasets.reduce((sum, dataset) => sum + dataset.file_size, 0)
+  const recentUploads = datasets.slice(0, 5)
+  const aggregateQuality = computeDatasetQuality(datasets)
 
   return (
     <div>
@@ -127,12 +92,12 @@ function DataLibrary() {
                 missionId={effectiveMissionId || null}
                 onUploaded={(dataset) => {
                   setBanner(`${dataset.original_filename} uploaded successfully.`)
-                  refetchDatasets()
+                  datasetsState.refetch()
                 }}
               />
             </div>
           ) : (
-            <span className="flex items-center gap-2 text-xs text-neutral-400">
+            <span className="flex items-center gap-2 text-xs text-neutral-400 dark:text-neutral-500">
               <UploadCloud className="h-4 w-4" aria-hidden="true" />
               Create a mission first to upload datasets
             </span>
@@ -151,17 +116,49 @@ function DataLibrary() {
         </Banner>
       )}
 
-      <Card>
-        <h2 className="mb-4 text-sm font-semibold text-neutral-900">Uploaded Datasets</h2>
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Datasets</p>
+          <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+            {datasetsState.status === 'success' ? <AnimatedCounter value={datasets.length} /> : '—'}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Storage Used</p>
+          <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+            {datasetsState.status === 'success' ? formatFileSize(totalSize) : '—'}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Data Quality</p>
+          {aggregateQuality ? (
+            <div className="mt-2 flex items-center gap-2">
+              <p className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+                <AnimatedCounter value={aggregateQuality.scorePercent} suffix="%" />
+              </p>
+              <Badge variant={aggregateQuality.variant}>{aggregateQuality.label}</Badge>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-neutral-400 dark:text-neutral-500">Awaiting validated data</p>
+          )}
+        </Card>
+        <Card>
+          <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Missions Connected</p>
+          <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+            {missionsData ? <AnimatedCounter value={missionsData.length} /> : '—'}
+          </p>
+        </Card>
+      </div>
 
-        {(missions.status === 'loading' || datasetsState.status === 'loading') && <Loading />}
+      <Card>
+        <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Uploaded Datasets</h2>
+
+        {(missions.status === 'loading' || datasetsState.status === 'loading') && <ListCardSkeleton />}
 
         {missions.status === 'error' && <Banner variant="danger">{missions.message}</Banner>}
-        {datasetsState.status === 'error' && (
-          <Banner variant="danger">{datasetsState.message}</Banner>
-        )}
+        {datasetsState.status === 'error' && <Banner variant="danger">{datasetsState.message}</Banner>}
 
-        {datasetsState.status === 'success' && datasetsState.data.length === 0 && (
+        {datasetsState.status === 'success' && datasets.length === 0 && (
           <EmptyState
             icon={Database}
             title="No datasets uploaded yet"
@@ -169,119 +166,175 @@ function DataLibrary() {
           />
         )}
 
-        {datasetsState.status === 'success' && datasetsState.data.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHeaderCell>Dataset</TableHeaderCell>
-                <TableHeaderCell>Mission</TableHeaderCell>
-                <TableHeaderCell>Size</TableHeaderCell>
-                <TableHeaderCell>Status</TableHeaderCell>
-                <TableHeaderCell>Uploaded</TableHeaderCell>
-                <TableHeaderCell>Actions</TableHeaderCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {datasetsState.data.map((dataset) => (
-                <TableRow key={dataset.id}>
-                  <TableCell>
-                    <Link
-                      to={datasetDetailsPath(dataset.id)}
-                      className="font-medium text-neutral-900 hover:text-primary-600"
-                    >
-                      {dataset.original_filename}
-                    </Link>
-                    <span className="ml-2 text-xs text-neutral-400">
-                      {dataset.file_type.toUpperCase()}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      to={missionDetailsPath(dataset.mission_id)}
-                      className="text-neutral-700 hover:text-primary-600"
-                    >
-                      {dataset.missionTitle}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{formatFileSize(dataset.file_size)}</TableCell>
-                  <TableCell>
-                    <Badge variant={datasetStatusBadgeVariant(dataset.upload_status)}>
-                      {datasetStatusLabel(dataset.upload_status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{formatDate(dataset.created_at)}</TableCell>
-                  <TableCell>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(dataset.id)}
-                      disabled={deletingId === dataset.id}
-                      className={buttonClasses('outline', 'sm')}
-                    >
-                      Delete
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        {datasetsState.status === 'success' && datasets.length > 0 && (
+          <div className="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-800">
+            {datasets.map((dataset) => {
+              const profile = dataset.profile
+              const isExpanded = expandedId === dataset.id
+              const rowQuality = profile ? computeDatasetQuality([dataset]) : null
+              const missingCells = profile
+                ? Object.values(profile.missing_values).reduce((sum, count) => sum + count, 0)
+                : 0
+
+              return (
+                <div key={dataset.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={datasetDetailsPath(dataset.id)}
+                          className="truncate font-medium text-neutral-900 hover:text-primary-600 dark:text-neutral-100 dark:hover:text-primary-400"
+                        >
+                          {dataset.original_filename}
+                        </Link>
+                        <span className="shrink-0 text-xs uppercase text-neutral-400 dark:text-neutral-500">
+                          {dataset.file_type}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 truncate text-xs text-neutral-500 dark:text-neutral-400">
+                        <Link to={missionDetailsPath(dataset.mission_id)} className="hover:text-primary-600 dark:hover:text-primary-400">
+                          {dataset.missionTitle}
+                        </Link>
+                        {' · '}
+                        {formatFileSize(dataset.file_size)}
+                        {' · '}
+                        {formatDate(dataset.created_at)}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant={datasetStatusBadgeVariant(dataset.upload_status)}>
+                        {datasetStatusLabel(dataset.upload_status)}
+                      </Badge>
+                      {rowQuality && <Badge variant={rowQuality.variant}>{rowQuality.scorePercent}% quality</Badge>}
+                      {profile && (
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(isExpanded ? null : dataset.id)}
+                          className={buttonClasses('outline', 'sm')}
+                        >
+                          {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                          Preview
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(dataset.id)}
+                        disabled={deletingId === dataset.id}
+                        className={buttonClasses('outline', 'sm')}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  {profile && (
+                    <div className="mt-2 flex flex-wrap gap-4 text-xs text-neutral-500 dark:text-neutral-400">
+                      <span>
+                        <strong className="font-medium text-neutral-700 dark:text-neutral-300">
+                          {profile.row_count.toLocaleString()}
+                        </strong>{' '}
+                        rows
+                      </span>
+                      <span>
+                        <strong className="font-medium text-neutral-700 dark:text-neutral-300">
+                          {profile.column_count}
+                        </strong>{' '}
+                        columns
+                      </span>
+                      <span>
+                        <strong className="font-medium text-neutral-700 dark:text-neutral-300">
+                          {missingCells.toLocaleString()}
+                        </strong>{' '}
+                        missing values
+                      </span>
+                      <span>
+                        <strong className="font-medium text-neutral-700 dark:text-neutral-300">
+                          {profile.duplicate_row_count.toLocaleString()}
+                        </strong>{' '}
+                        duplicate rows
+                      </span>
+                    </div>
+                  )}
+
+                  {isExpanded && profile && (
+                    <div className="mt-3 overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-800">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-neutral-50 dark:bg-neutral-900/60">
+                          <tr>
+                            <th className="px-3 py-2 font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                              Column
+                            </th>
+                            <th className="px-3 py-2 font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                              Type
+                            </th>
+                            <th className="px-3 py-2 font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                              Category
+                            </th>
+                            <th className="px-3 py-2 font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                              Missing
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                          {profile.columns.map((column) => (
+                            <tr key={column.name}>
+                              <td className="px-3 py-2 font-medium text-neutral-800 dark:text-neutral-200">
+                                {column.name}
+                              </td>
+                              <td className="px-3 py-2 text-neutral-500 dark:text-neutral-400">{column.dtype}</td>
+                              <td className="px-3 py-2">
+                                <Badge variant={columnCategoryBadgeVariant(column.category)}>
+                                  {columnCategoryLabel(column.category)}
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-2 text-neutral-500 dark:text-neutral-400">
+                                {column.missing_count.toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         )}
       </Card>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold text-neutral-900">Data Quality</h2>
-          <p className="text-sm text-neutral-500">
-            Quality metrics will appear once datasets are processed.
-          </p>
-        </Card>
-        <Card>
-          <h2 className="mb-3 text-sm font-semibold text-neutral-900">Storage Status</h2>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-neutral-500">Datasets</span>
-            <span className="font-medium text-neutral-900">
-              {datasetsState.status === 'success' ? datasetsState.data.length : '—'}
-            </span>
-          </div>
-          <div className="mt-2 flex items-center justify-between text-sm">
-            <span className="text-neutral-500">Storage Used</span>
-            <span className="font-medium text-neutral-900">
-              {datasetsState.status === 'success' ? formatFileSize(totalSize) : '—'}
-            </span>
-          </div>
-        </Card>
-      </div>
-
       <Card className="mt-4">
-        <h2 className="mb-4 text-sm font-semibold text-neutral-900">Supported File Types</h2>
+        <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Supported File Types</h2>
         <div className="flex flex-wrap gap-3">
           {SUPPORTED_FILE_TYPES.map(({ label, icon: Icon }) => (
             <span
               key={label}
-              className="inline-flex items-center gap-2 rounded-md border border-neutral-200 px-3 py-1.5 text-sm text-neutral-700"
+              className="inline-flex items-center gap-2 rounded-md border border-neutral-200 px-3 py-1.5 text-sm text-neutral-700 dark:border-neutral-700 dark:text-neutral-300"
             >
               <Icon className="h-4 w-4 text-neutral-400" aria-hidden="true" />
               {label}
             </span>
           ))}
         </div>
-        <p className="mt-3 text-xs text-neutral-400">Maximum file size: 25 MB</p>
+        <p className="mt-3 text-xs text-neutral-400 dark:text-neutral-500">Maximum file size: 25 MB</p>
       </Card>
 
       <Card className="mt-4">
-        <h2 className="mb-4 text-sm font-semibold text-neutral-900">Recent Uploads</h2>
+        <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Recent Uploads</h2>
         {recentUploads.length === 0 ? (
           <EmptyState icon={UploadCloud} title="No recent uploads" />
         ) : (
-          <ul className="flex flex-col divide-y divide-neutral-200">
+          <ul className="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-800">
             {recentUploads.map((dataset) => (
               <li key={dataset.id} className="flex items-center justify-between gap-3 py-2.5">
                 <Link
                   to={datasetDetailsPath(dataset.id)}
-                  className="min-w-0 flex-1 truncate text-sm text-neutral-900 hover:text-primary-600"
+                  className="min-w-0 flex-1 truncate text-sm text-neutral-900 hover:text-primary-600 dark:text-neutral-100 dark:hover:text-primary-400"
                 >
                   {dataset.original_filename}
                 </Link>
-                <span className="text-xs text-neutral-400">{formatDate(dataset.created_at)}</span>
+                <span className="text-xs text-neutral-400 dark:text-neutral-500">{formatDate(dataset.created_at)}</span>
               </li>
             ))}
           </ul>

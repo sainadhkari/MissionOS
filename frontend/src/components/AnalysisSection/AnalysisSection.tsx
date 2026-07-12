@@ -8,7 +8,7 @@ interface AnalysisSectionProps {
 function AnalysisSection({ title, children }: AnalysisSectionProps) {
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{title}</h3>
       <div className="mt-1.5">{children}</div>
     </div>
   )
@@ -16,14 +16,14 @@ function AnalysisSection({ title, children }: AnalysisSectionProps) {
 
 export function BulletList({ items }: { items: string[] }) {
   if (items.length === 0) {
-    return <p className="text-sm text-neutral-400">None identified.</p>
+    return <p className="text-sm text-neutral-400 dark:text-neutral-500">None identified.</p>
   }
   return (
     <ul className="flex flex-col gap-1.5">
       {items.map((item, index) => (
-        <li key={index} className="flex gap-2 text-sm text-neutral-700">
+        <li key={index} className="flex gap-2 text-sm text-neutral-700 dark:text-neutral-300">
           <span
-            className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-neutral-400"
+            className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-neutral-400 dark:bg-neutral-600"
             aria-hidden="true"
           />
           <span>{item}</span>

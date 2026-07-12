@@ -4,11 +4,15 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
+  Briefcase,
+  CalendarClock,
+  CheckCircle2,
   Database,
   Flag,
   Loader2,
   ShieldAlert,
   Sparkles,
+  Target,
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
@@ -19,6 +23,7 @@ import Badge from '../components/Badge'
 import { buttonClasses } from '../components/Button'
 import ExportReportMenu from '../components/ExportReportMenu'
 import KpiCard from '../components/KpiCard'
+import ConfidenceGauge from '../components/ConfidenceGauge'
 import OpportunitiesBarChart from '../components/OpportunitiesBarChart'
 import RiskCategoryChart from '../components/RiskCategoryChart'
 import DatasetSummaryChart from '../components/DatasetSummaryChart'
@@ -27,6 +32,7 @@ import { useAnalysisPolling } from '../hooks/useAnalysisPolling'
 import { useMissionDatasets } from '../hooks/useMissionDatasets'
 import { missionService } from '../services/mission'
 import { getErrorMessage } from '../utils/http'
+import { formatDate } from '../utils/date'
 import { ROUTES, missionDetailsPath } from '../constants/routes'
 import { severityBadgeVariant } from '../utils/analysis'
 import {
@@ -154,7 +160,7 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
       <Card>
         <div className="flex items-center gap-3">
           <Loader2 className="h-4 w-4 animate-spin text-primary-600" aria-hidden="true" />
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
             {analysis.status === 'pending'
               ? 'Preparing analysis…'
               : 'Analysis in progress — this can take a minute…'}
@@ -197,8 +203,40 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
   const recommendations = topRecommendations(strategy_analysis)
   const risks = topRisks(risk_analysis.critical_risks)
 
+  const agents = [
+    { label: 'Business Analyst', icon: Briefcase, confidence: business_analysis.confidence },
+    { label: 'Strategy', icon: Target, confidence: strategy_analysis.confidence },
+    { label: 'Risk', icon: ShieldAlert, confidence: risk_analysis.confidence },
+    { label: 'Executive', icon: Sparkles, confidence: executive_analysis.confidence },
+  ]
+
+  const timeline = [
+    { label: 'Mission Created', timestamp: mission.created_at },
+    { label: 'Analysis Started', timestamp: analysis.started_at },
+    { label: 'Analysis Completed', timestamp: analysis.completed_at },
+  ].filter((entry): entry is { label: string; timestamp: string } => Boolean(entry.timestamp))
+
   return (
     <div className="flex flex-col gap-4">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-700 via-primary-600 to-violet-700 p-6 text-white shadow-glow sm:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium backdrop-blur-sm">
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Analysis Completed
+            </span>
+            <h2 className="mt-3 text-xl font-semibold leading-snug sm:text-2xl">{executive_analysis.final_recommendation}</h2>
+            <p className="mt-2 text-sm text-white/70">{mission.business_domain} · Priority: {capitalize(strategy_analysis.priority)}</p>
+          </div>
+          {aiConfidence !== null && (
+            <div className="shrink-0 rounded-xl bg-white/10 p-4 backdrop-blur-sm">
+              <ConfidenceGaugeLight value={aiConfidence} />
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           icon={Activity}
@@ -246,13 +284,66 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
         />
       </div>
 
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        <Card className="flex items-center justify-center">
+          {aiConfidence !== null ? (
+            <ConfidenceGauge value={aiConfidence} />
+          ) : (
+            <EmptyState icon={Sparkles} title="No confidence score yet" />
+          )}
+        </Card>
+
+        <Card>
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Agent Status</h2>
+          <div className="flex flex-col gap-3">
+            {agents.map(({ label, icon: Icon, confidence }) => (
+              <div key={label} className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
+                  <Icon className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+                  {label}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Badge variant={confidenceBadgeVariant(confidence)}>{Math.round(confidence * 100)}%</Badge>
+                  <Badge variant="success">Complete</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mission Timeline</h2>
+          <ol className="flex flex-col gap-4">
+            {timeline.map((entry, index) => (
+              <li key={entry.label} className="flex items-start gap-3">
+                <span className="flex flex-col items-center">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 dark:bg-primary-950/60 dark:text-primary-400">
+                    <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                  {index < timeline.length - 1 && <span className="mt-1 h-6 w-px bg-neutral-200 dark:bg-neutral-800" />}
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{entry.label}</p>
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(entry.timestamp)}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Card>
+
+        <Card>
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Business Impact</h2>
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">{strategy_analysis.business_impact}</p>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900">Business Output Breakdown</h2>
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Business Output Breakdown</h2>
           <OpportunitiesBarChart business={business_analysis} />
         </Card>
         <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900">Risk Categories</h2>
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Risk Categories</h2>
           {risk_analysis.critical_risks.length === 0 ? (
             <EmptyState icon={ShieldAlert} title="No critical risks identified" />
           ) : (
@@ -260,7 +351,7 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
           )}
         </Card>
         <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900">Dataset Column Types</h2>
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Dataset Column Types</h2>
           {hasDatasetProfile && datasets.status === 'success' ? (
             <DatasetSummaryChart datasets={datasets.data} />
           ) : (
@@ -270,37 +361,48 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
       </div>
 
       <Card>
-        <h2 className="mb-4 text-sm font-semibold text-neutral-900">Executive Summary</h2>
-        <p className="text-sm text-neutral-700">{executive_analysis.executive_summary}</p>
+        <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Executive Summary</h2>
+        <p className="text-sm text-neutral-700 dark:text-neutral-300">{executive_analysis.executive_summary}</p>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900">Top 5 Recommendations</h2>
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Top 5 Recommendations</h2>
           <BulletList items={recommendations} />
         </Card>
         <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900">Top 5 Risks</h2>
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Top 5 Risks</h2>
           {risks.length === 0 ? (
-            <p className="text-sm text-neutral-400">None identified.</p>
+            <p className="text-sm text-neutral-400 dark:text-neutral-500">None identified.</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {risks.map((risk, index) => (
-                <li key={index} className="rounded-md border border-neutral-200 p-3">
+                <li key={index} className="rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-neutral-900">{risk.title}</span>
+                    <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{risk.title}</span>
                     <div className="flex items-center gap-1.5">
                       <Badge variant="neutral">{risk.category}</Badge>
                       <Badge variant={severityBadgeVariant(risk.severity)}>{risk.severity}</Badge>
                     </div>
                   </div>
-                  <p className="mt-1.5 text-xs text-neutral-500">Probability: {risk.probability}</p>
+                  <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">Probability: {risk.probability}</p>
                 </li>
               ))}
             </ul>
           )}
         </Card>
       </div>
+    </div>
+  )
+}
+
+/** A compact confidence readout for the hero banner, tuned for a colored
+ * gradient background rather than the card surface `ConfidenceGauge` targets. */
+function ConfidenceGaugeLight({ value }: { value: number }) {
+  return (
+    <div className="flex flex-col items-center gap-1 px-2">
+      <span className="text-4xl font-bold text-white">{Math.round(value * 100)}%</span>
+      <span className="text-xs font-medium text-white/70">AI Confidence</span>
     </div>
   )
 }

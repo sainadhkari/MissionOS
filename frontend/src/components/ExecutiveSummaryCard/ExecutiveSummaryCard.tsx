@@ -15,15 +15,15 @@ function ExecutiveSummaryCard({ business, strategy, risk, executive }: Executive
   return (
     <Card>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-neutral-900">Executive Summary</h2>
+        <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Executive Summary</h2>
         <Badge variant="primary">{Math.round(executive.confidence * 100)}% confidence</Badge>
       </div>
       <div className="flex flex-col gap-4">
         <AnalysisSection title="Executive Summary">
-          <p className="text-sm text-neutral-700">{executive.executive_summary}</p>
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">{executive.executive_summary}</p>
         </AnalysisSection>
         <AnalysisSection title="Overall Assessment">
-          <p className="text-sm text-neutral-700">{executive.final_recommendation}</p>
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">{executive.final_recommendation}</p>
         </AnalysisSection>
         <AnalysisSection title="Key Opportunities">
           <BulletList items={business.key_opportunities} />
@@ -33,7 +33,7 @@ function ExecutiveSummaryCard({ business, strategy, risk, executive }: Executive
         </AnalysisSection>
         <AnalysisSection title="Critical Risks">
           {risk.critical_risks.length === 0 ? (
-            <p className="text-sm text-neutral-400">None identified.</p>
+            <p className="text-sm text-neutral-400 dark:text-neutral-500">None identified.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {risk.critical_risks.map((item, index) => (
@@ -51,7 +51,7 @@ function ExecutiveSummaryCard({ business, strategy, risk, executive }: Executive
           <Badge variant={severityBadgeVariant(strategy.priority)}>{strategy.priority}</Badge>
         </AnalysisSection>
         <AnalysisSection title="Expected Outcomes">
-          <p className="text-sm text-neutral-700">{strategy.business_impact}</p>
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">{strategy.business_impact}</p>
         </AnalysisSection>
       </div>
     </Card>

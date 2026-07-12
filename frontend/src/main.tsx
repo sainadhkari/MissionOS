@@ -6,6 +6,8 @@ import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary'
 import ErrorFallback from './components/ErrorFallback'
 import { config } from './config'
+import { ThemeProvider } from './contexts/ThemeContext'
+import { ToastProvider } from './contexts/ToastContext'
 
 const root = createRoot(document.getElementById('root')!)
 
@@ -25,9 +27,13 @@ if (!config.isConfigured) {
   root.render(
     <StrictMode>
       <ErrorBoundary>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <ThemeProvider>
+          <ToastProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </ToastProvider>
+        </ThemeProvider>
       </ErrorBoundary>
     </StrictMode>
   )

@@ -58,13 +58,13 @@ function ExportReportMenu({ missionId }: ExportReportMenuProps) {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-10 mt-1 w-36 rounded-md border border-neutral-200 bg-white py-1 shadow-card">
+        <div className="absolute right-0 z-10 mt-1 w-36 rounded-md border border-neutral-200 bg-white py-1 shadow-card dark:border-neutral-800 dark:bg-neutral-900">
           {FORMATS.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               type="button"
               onClick={() => handleExport(value)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               <Icon className="h-4 w-4 text-neutral-400" aria-hidden="true" />
               {label}

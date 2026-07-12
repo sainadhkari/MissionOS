@@ -2,6 +2,7 @@ import colors from 'tailwindcss/colors'
 
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -36,11 +37,26 @@ export default {
           '33%': { transform: 'translate(24px, -32px) scale(1.06)' },
           '66%': { transform: 'translate(-18px, 18px) scale(0.96)' },
         },
+        shimmer: {
+          '0%': { backgroundPosition: '-400px 0' },
+          '100%': { backgroundPosition: '400px 0' },
+        },
+        'toast-in': {
+          '0%': { opacity: '0', transform: 'translateY(-8px) scale(0.96)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'scale-in': {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
       },
       animation: {
         'fade-in-up': 'fade-in-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         float: 'float 6s ease-in-out infinite',
         blob: 'blob 14s ease-in-out infinite',
+        shimmer: 'shimmer 1.6s ease-in-out infinite',
+        'toast-in': 'toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'scale-in': 'scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       },
     },
   },

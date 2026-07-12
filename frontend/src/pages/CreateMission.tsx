@@ -1,18 +1,27 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ClipboardList, Rocket, Target } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import Button from '../components/Button'
 import Banner from '../components/Banner'
+import Badge from '../components/Badge'
 import Stepper from '../components/Stepper'
 import MissionForm from '../components/MissionForm'
 import { missionDetailsPath } from '../constants/routes'
 import { missionService } from '../services/mission'
 import { getErrorMessage } from '../utils/http'
+import { missionPriorityBadgeVariant, missionPriorityLabel } from '../utils/mission'
 import { EMPTY_MISSION_FORM_VALUES } from '../types/Mission'
 import type { MissionFormValues } from '../types/Mission'
 
 const STEPS = ['Mission Information', 'Review', 'Launch']
+
+const REVIEW_FIELDS: { key: keyof MissionFormValues; label: string }[] = [
+  { key: 'problemStatement', label: 'Problem Statement' },
+  { key: 'objective', label: 'Business Objective' },
+  { key: 'expectedOutput', label: 'Expected Output' },
+]
 
 function CreateMission() {
   const navigate = useNavigate()
@@ -56,61 +65,64 @@ function CreateMission() {
           </Banner>
         )}
 
-        {step === 0 && <MissionForm values={values} onChange={setValues} />}
+        <div key={step} className="animate-fade-in-up">
+          {step === 0 && <MissionForm values={values} onChange={setValues} />}
 
-        {step === 1 && (
-          <div className="flex flex-col gap-4">
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Mission Name
-              </h2>
-              <p className="mt-1 text-sm text-neutral-700">{values.title || '—'}</p>
-            </div>
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Business Domain / Priority
-              </h2>
-              <p className="mt-1 text-sm text-neutral-700">
-                {values.businessDomain || '—'} · {values.priority}
-              </p>
-            </div>
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Problem Statement
-              </h2>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700">
-                {values.problemStatement || '—'}
-              </p>
-            </div>
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Business Objective
-              </h2>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700">
-                {values.objective || '—'}
-              </p>
-            </div>
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                Expected Output
-              </h2>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700">
-                {values.expectedOutput || '—'}
-              </p>
-            </div>
-          </div>
-        )}
+          {step === 1 && (
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-800/40">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary-100 text-primary-700 dark:bg-primary-950/60 dark:text-primary-400">
+                  <ClipboardList className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                    {values.title || '—'}
+                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                      {values.businessDomain || '—'}
+                    </span>
+                    <Badge variant={missionPriorityBadgeVariant(values.priority)}>
+                      {missionPriorityLabel(values.priority)}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
 
-        {step === 2 && (
-          <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-            <p className="text-sm font-medium text-neutral-900">Ready to launch</p>
-            <p className="max-w-xs text-sm text-neutral-500">
-              This creates the mission as a draft. You can edit it any time from Mission History.
-            </p>
-          </div>
-        )}
+              {REVIEW_FIELDS.map(({ key, label }) => (
+                <div key={key}>
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                    {label}
+                  </h2>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-700 dark:text-neutral-300">
+                    {values[key] || '—'}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
 
-        <div className="mt-8 flex items-center justify-between border-t border-neutral-200 pt-6">
+          {step === 2 && (
+            <div className="flex flex-col items-center justify-center gap-4 py-10 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-50 text-primary-600 dark:bg-primary-950/60 dark:text-primary-400">
+                <Rocket className="h-6 w-6" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Ready to launch</p>
+                <p className="mt-1 max-w-xs text-sm text-neutral-500 dark:text-neutral-400">
+                  This creates the mission as a draft. You can upload datasets and start AI analysis any time
+                  from Mission History.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-neutral-400 dark:text-neutral-500">
+                <Target className="h-3.5 w-3.5" aria-hidden="true" />
+                Next step: attach a dataset and run analysis
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-8 flex items-center justify-between border-t border-neutral-200 pt-6 dark:border-neutral-800">
           <Button
             variant="outline"
             disabled={isFirstStep}

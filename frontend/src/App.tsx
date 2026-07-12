@@ -15,7 +15,6 @@ const MissionHistory = lazy(() => import('./pages/MissionHistory'))
 const MissionDetails = lazy(() => import('./pages/MissionDetails'))
 const EditMission = lazy(() => import('./pages/EditMission'))
 const DatasetDetails = lazy(() => import('./pages/DatasetDetails'))
-const MissionExecution = lazy(() => import('./pages/MissionExecution'))
 const MissionReport = lazy(() => import('./pages/MissionReport'))
 const DataLibrary = lazy(() => import('./pages/DataLibrary'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -42,7 +41,6 @@ function App() {
           <Route path="missions/history" element={<MissionHistory />} />
           <Route path="missions/:missionId/edit" element={<EditMission />} />
           <Route path="missions/:missionId" element={<MissionDetails />} />
-          <Route path="missions/:missionId/execution" element={<MissionExecution />} />
           <Route path="missions/:missionId/report" element={<MissionReport />} />
           <Route path="datasets/:datasetId" element={<DatasetDetails />} />
           <Route path="data-library" element={<DataLibrary />} />

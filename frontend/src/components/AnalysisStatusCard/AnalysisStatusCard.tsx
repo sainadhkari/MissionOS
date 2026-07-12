@@ -46,7 +46,7 @@ function AnalysisStatusCard({
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-neutral-900">AI Analysis</h2>
+        <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">AI Analysis</h2>
         <div className="flex items-center gap-2">
           <Badge variant={analysisStatusBadgeVariant(viewStatus)}>
             {analysisStatusLabel(viewStatus)}
@@ -63,7 +63,7 @@ function AnalysisStatusCard({
 
       {viewStatus === 'not_started' && (
         <div className="mt-4 flex flex-col items-start gap-3">
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
             Run Business, Strategy, Risk, and Executive analysis for this mission using its
             validated datasets.
           </p>
@@ -77,14 +77,14 @@ function AnalysisStatusCard({
       {viewStatus === 'pending' && (
         <div className="mt-4 flex items-center gap-3">
           <Loader2 className="h-4 w-4 animate-spin text-primary-600" aria-hidden="true" />
-          <p className="text-sm text-neutral-500">Preparing analysis…</p>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">Preparing analysis…</p>
         </div>
       )}
 
       {viewStatus === 'running' && (
         <div className="mt-4 flex items-center gap-3">
           <Loader2 className="h-4 w-4 animate-spin text-primary-600" aria-hidden="true" />
-          <p className="text-sm text-neutral-500">{runningMessage}</p>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">{runningMessage}</p>
         </div>
       )}
 
@@ -103,7 +103,7 @@ function AnalysisStatusCard({
       )}
 
       {viewStatus === 'completed' && analysis?.completed_at && (
-        <p className="mt-4 text-sm text-neutral-500">
+        <p className="mt-4 text-sm text-neutral-500 dark:text-neutral-400">
           Completed {formatDate(analysis.completed_at)}. See the sections below for full results.
         </p>
       )}

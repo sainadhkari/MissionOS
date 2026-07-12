@@ -81,8 +81,8 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
         <Card>
           <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
             <Loading />
-            <p className="text-sm font-medium text-neutral-900">Validating dataset…</p>
-            <p className="max-w-xs text-sm text-neutral-500">
+            <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">Validating dataset…</p>
+            <p className="max-w-xs text-sm text-neutral-500 dark:text-neutral-400">
               Reading the file, detecting its structure, and computing column statistics. This
               page updates automatically.
             </p>
@@ -112,7 +112,7 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
       {status === 'ready' && profile && (
         <div className="flex flex-col gap-4">
           <Card>
-            <h2 className="mb-4 text-sm font-semibold text-neutral-900">Summary</h2>
+            <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Summary</h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <SummaryStat label="Rows" value={profile.row_count.toLocaleString()} />
               <SummaryStat label="Columns" value={profile.column_count.toLocaleString()} />
@@ -123,14 +123,14 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
               <SummaryStat label="Encoding" value={profile.encoding ?? '—'} />
             </div>
             {profile.delimiter && (
-              <p className="mt-4 text-xs text-neutral-400">
-                Delimiter detected: <code className="text-neutral-600">{profile.delimiter}</code>
+              <p className="mt-4 text-xs text-neutral-400 dark:text-neutral-500">
+                Delimiter detected: <code className="text-neutral-600 dark:text-neutral-300">{profile.delimiter}</code>
               </p>
             )}
           </Card>
 
           <Card>
-            <h2 className="mb-4 text-sm font-semibold text-neutral-900">Columns</h2>
+            <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Columns</h2>
             {profile.columns.length === 0 ? (
               <EmptyState icon={Database} title="No columns detected" />
             ) : (
@@ -146,9 +146,9 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
                 <TableBody>
                   {profile.columns.map((column) => (
                     <TableRow key={column.name}>
-                      <TableCell className="font-medium text-neutral-900">{column.name}</TableCell>
+                      <TableCell className="font-medium text-neutral-900 dark:text-neutral-100">{column.name}</TableCell>
                       <TableCell>
-                        <code className="text-xs text-neutral-500">{column.dtype}</code>
+                        <code className="text-xs text-neutral-500 dark:text-neutral-400">{column.dtype}</code>
                       </TableCell>
                       <TableCell>
                         <Badge variant={columnCategoryBadgeVariant(column.category)}>
@@ -158,7 +158,7 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
                       <TableCell>
                         {column.missing_count.toLocaleString()}
                         {profile.row_count > 0 && (
-                          <span className="ml-1 text-xs text-neutral-400">
+                          <span className="ml-1 text-xs text-neutral-400 dark:text-neutral-500">
                             ({((column.missing_count / profile.row_count) * 100).toFixed(1)}%)
                           </span>
                         )}
@@ -172,7 +172,7 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
 
           {Object.keys(profile.numeric_summary).length > 0 && (
             <Card>
-              <h2 className="mb-4 text-sm font-semibold text-neutral-900">Numeric Statistics</h2>
+              <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Numeric Statistics</h2>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -187,7 +187,7 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
                 <TableBody>
                   {Object.entries(profile.numeric_summary).map(([column, summary]) => (
                     <TableRow key={column}>
-                      <TableCell className="font-medium text-neutral-900">{column}</TableCell>
+                      <TableCell className="font-medium text-neutral-900 dark:text-neutral-100">{column}</TableCell>
                       <TableCell>{formatStatValue(summary.min)}</TableCell>
                       <TableCell>{formatStatValue(summary.max)}</TableCell>
                       <TableCell>{formatStatValue(summary.mean)}</TableCell>
@@ -202,15 +202,15 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
 
           {Object.keys(profile.categorical_summary).length > 0 && (
             <Card>
-              <h2 className="mb-4 text-sm font-semibold text-neutral-900">
+              <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                 Categorical Statistics
               </h2>
               <div className="flex flex-col gap-5">
                 {Object.entries(profile.categorical_summary).map(([column, summary]) => (
                   <div key={column}>
                     <div className="flex items-baseline justify-between">
-                      <h3 className="text-sm font-medium text-neutral-900">{column}</h3>
-                      <span className="text-xs text-neutral-400">
+                      <h3 className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{column}</h3>
+                      <span className="text-xs text-neutral-400 dark:text-neutral-500">
                         {summary.unique_count.toLocaleString()} unique values
                       </span>
                     </div>
@@ -218,10 +218,10 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
                       {summary.top_values.map((entry, index) => (
                         <span
                           key={index}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-700"
+                          className="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 px-2.5 py-1 text-xs text-neutral-700 dark:border-neutral-700 dark:text-neutral-300"
                         >
                           {String(entry.value ?? '—')}
-                          <span className="text-neutral-400">×{entry.count.toLocaleString()}</span>
+                          <span className="text-neutral-400 dark:text-neutral-500">×{entry.count.toLocaleString()}</span>
                         </span>
                       ))}
                     </div>
@@ -239,8 +239,8 @@ function DatasetDetailsView({ dataset }: { dataset: Dataset }) {
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-neutral-900">{value}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-100">{value}</p>
     </div>
   )
 }

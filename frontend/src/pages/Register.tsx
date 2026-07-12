@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import PageHeader from '../components/PageHeader'
 import Input from '../components/Input'
 import Button from '../components/Button'
 import { ROUTES } from '../constants/routes'
@@ -32,10 +31,18 @@ function Register() {
 
   return (
     <div>
-      <PageHeader title="Register" subtitle="Create your MissionOS account." />
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
+        Create your account
+      </h1>
+      <p className="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400">
+        Start turning data into decisions with MissionOS.
+      </p>
+
+      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         {error && (
-          <p className="rounded-md bg-danger-50 px-3 py-2 text-sm text-danger-700">{error}</p>
+          <p className="rounded-md bg-danger-50 px-3 py-2 text-sm text-danger-700 dark:bg-danger-950/50 dark:text-danger-300">
+            {error}
+          </p>
         )}
         <Input
           id="fullName"
@@ -66,13 +73,13 @@ function Register() {
           onChange={(event) => setPassword(event.target.value)}
           required
         />
-        <Button type="submit" variant="primary" className="w-full" disabled={isSubmitting}>
+        <Button type="submit" variant="primary" size="lg" className="mt-1 w-full" disabled={isSubmitting}>
           {isSubmitting ? 'Creating account…' : 'Create account'}
         </Button>
       </form>
-      <p className="mt-6 text-center text-sm text-neutral-500">
+      <p className="mt-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
         Already have an account?{' '}
-        <Link to={ROUTES.login} className="font-medium text-primary-600 hover:text-primary-700">
+        <Link to={ROUTES.login} className="font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400">
           Sign in
         </Link>
       </p>

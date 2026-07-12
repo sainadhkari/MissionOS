@@ -6,13 +6,13 @@ import { ROUTES } from '../constants/routes'
 
 function NotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 dark:bg-neutral-950">
       <Card className="w-full max-w-sm text-center">
-        <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">
+        <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500">
           <Compass className="h-5 w-5" aria-hidden="true" />
         </span>
-        <h1 className="mt-4 text-base font-semibold text-neutral-900">Page not found</h1>
-        <p className="mt-1.5 text-sm text-neutral-500">
+        <h1 className="mt-4 text-base font-semibold text-neutral-900 dark:text-neutral-100">Page not found</h1>
+        <p className="mt-1.5 text-sm text-neutral-500 dark:text-neutral-400">
           The page you're looking for doesn't exist or may have moved.
         </p>
         <Link to={ROUTES.dashboard} className={`${buttonClasses('primary', 'sm')} mt-5`}>

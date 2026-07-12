@@ -8,7 +8,7 @@ function ProgressBar({ value, className = '' }: ProgressBarProps) {
 
   return (
     <div
-      className={`h-1.5 w-full overflow-hidden rounded-full bg-neutral-100 ${className}`}
+      className={`h-1.5 w-full overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800 ${className}`}
       role="progressbar"
       aria-valuenow={clamped}
       aria-valuemin={0}
