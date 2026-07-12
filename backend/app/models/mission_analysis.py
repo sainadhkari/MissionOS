@@ -35,6 +35,10 @@ class MissionAnalysis(Base):
     strategy_analysis: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     risk_analysis: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     executive_analysis: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    # A `RetrievalStats` snapshot (app.rag.models) of the one shared RAG
+    # retrieval call made before the four agents ran — null for analyses
+    # that predate RAG, or where retrieval raised before producing a result.
+    retrieval_stats: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     error_message: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -20,7 +20,11 @@ _PROMPT_NAME = "strategy"
 # signature identical across every agent, which matters for orchestrator
 # uniformity and for treating this as a future LangGraph node unmodified.
 _DEFAULT_TEMPERATURE = 0.2
-_DEFAULT_MAX_OUTPUT_TOKENS = 1500
+# Raised from 1500: retrieved-evidence context (app.ai.context_formatting.
+# format_retrieved_context) and the evidence_used output field both add to
+# the expected response length, and 1500 was occasionally too tight,
+# truncating the JSON response mid-string.
+_DEFAULT_MAX_OUTPUT_TOKENS = 2200
 
 
 def _build_user_message(request: AnalysisRequest, prior: AnalysisResult) -> str:

@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response, status
@@ -7,9 +8,12 @@ from app.api.deps import get_current_user
 from app.database.session import get_db
 from app.models.mission_analysis import MissionAnalysis
 from app.models.user import User
+from app.reports.exceptions import ReportGenerationError
 from app.reports.models import ReportFormat
 from app.schemas.mission_analysis import MissionAnalysisResponse
 from app.services import mission_analysis_service, mission_service, report_service
+
+logger = logging.getLogger("missionos.reports")
 
 router = APIRouter(prefix="/missions/{mission_id}", tags=["analysis"])
 
@@ -84,7 +88,26 @@ def export_report(
             "completed analysis",
         ) from exc
 
-    content, media_type = service.render(data, report_format)
+    try:
+        content, media_type = service.render(data, report_format)
+    except ReportGenerationError as exc:
+        # Not `.exception()` in the sense of "unexpected" — `render_pdf`
+        # already logged the real underlying cause (xhtml2pdf's own error
+        # detail, or a full traceback if xhtml2pdf raised outright) at the
+        # point of failure. This log line exists so the *request* that
+        # failed (mission/format) is correlated with that cause in one
+        # place, without re-dumping the same traceback twice.
+        logger.error(
+            "Report export failed for mission %s (format=%s): %s",
+            mission_id,
+            report_format.value,
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not generate the {report_format.value} report: {exc}",
+        ) from exc
+
     filename = f"mission-{mission_id}-report.{report_format.value}"
     return Response(
         content=content,

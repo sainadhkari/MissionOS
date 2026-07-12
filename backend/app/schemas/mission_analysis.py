@@ -10,6 +10,7 @@ from app.ai.models import (
     StrategyAnalysisOutput,
 )
 from app.models.enums import AnalysisStatus
+from app.rag.models import RetrievalStats
 
 
 class MissionAnalysisResponse(BaseModel):
@@ -27,6 +28,7 @@ class MissionAnalysisResponse(BaseModel):
     strategy_analysis: StrategyAnalysisOutput | None
     risk_analysis: RiskAnalysisOutput | None
     executive_analysis: ExecutiveAnalysisOutput | None
+    retrieval_stats: RetrievalStats | None
     error_message: str | None
     started_at: datetime | None
     completed_at: datetime | None

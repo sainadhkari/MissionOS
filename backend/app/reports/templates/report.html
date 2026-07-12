@@ -156,15 +156,59 @@
   .chart-title { font-size: 9.5pt; font-weight: bold; color: #374151; margin-bottom: 6pt; }
 
   /* ---------- Generic data table ---------- */
-  table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 8pt; }
+  /* `table-layout: fixed` prevents a long unwrapped value (e.g. a filename
+     or embedding model name) from overflowing its own column and
+     overlapping the cell beside it — without it, xhtml2pdf sizes columns
+     from content width alone and doesn't reliably wrap long single-token
+     strings first, so two adjacent cells can render on top of each other. */
+  table.data-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 8pt; }
   table.data-table th, table.data-table td {
     border: 0.5pt solid #d1d5db;
     padding: 5pt 6pt;
     text-align: left;
     font-size: 9pt;
     vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   table.data-table th { background-color: #eef2ff; color: #1e1b4b; }
+
+  /* ---------- Dense data table (many columns, e.g. Dataset Intelligence) ----------
+     A fully self-contained class (not combined with `.data-table` on the
+     same element) — xhtml2pdf's CSS engine does not reliably merge two
+     classes' rules on one element, so every property this table needs is
+     declared here directly rather than relying on `.data-table` too. */
+  table.data-table-dense {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin-bottom: 8pt;
+  }
+  table.data-table-dense th, table.data-table-dense td {
+    border: 0.5pt solid #d1d5db;
+    padding: 4pt 4pt;
+    text-align: left;
+    font-size: 7.5pt;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  table.data-table-dense th { background-color: #eef2ff; color: #1e1b4b; }
+
+  {% if is_pdf %}
+  /* xhtml2pdf-only: word-wrap/overflow-wrap alone don't reliably break a
+     long unbroken token (a filename, a model name) in xhtml2pdf's
+     reportlab-based renderer, so a value like "walmart_sales.csv" or
+     "text-embedding-3-small" can overflow its column and visually overlap
+     the next cell. break-all forces a character-level break as a
+     last resort. Scoped to `is_pdf` only: real browsers (the HTML export)
+     already wrap correctly without it, and break-all there would cause
+     unnecessary mid-word breaks on headings that have plenty of room. */
+  table.data-table td, table.data-table th,
+  table.data-table-dense td, table.data-table-dense th {
+    word-break: break-all;
+  }
+  {% endif %}
 
   /* ---------- Numbered recommendation cards ---------- */
   table.numbered-list { width: 100%; border-collapse: separate; border-spacing: 0 6pt; }
@@ -220,6 +264,114 @@
   .detail-divider-subtitle { color: #6b7280; font-size: 9.5pt; margin-bottom: 14pt; }
 
   .footer-text { font-size: 8pt; color: #9ca3af; text-align: center; }
+
+  /* ---------- Enterprise badges (cover page) ---------- */
+  table.badge-strip { width: 100%; border-collapse: separate; border-spacing: 4pt; margin-top: 16pt; }
+  table.badge-strip td { padding: 0; text-align: left; }
+  .tech-badge {
+    display: inline-block;
+    white-space: nowrap;
+    padding: 3pt 9pt;
+    border-radius: 9pt;
+    font-size: 7.5pt;
+    font-weight: bold;
+    letter-spacing: 0.3pt;
+    background-color: #3730a3;
+    color: #e0e7ff;
+    border: 0.5pt solid #6366f1;
+  }
+
+  /* ---------- Methodology workflow (reuses roadmap visuals) ---------- */
+  .method-step {
+    border: 0.5pt solid #e5e7eb;
+    border-left: 5pt solid #4f46e5;
+    border-radius: 4pt;
+    padding: 7pt 10pt;
+    margin-bottom: 2pt;
+    page-break-inside: avoid;
+  }
+  .method-step-label { font-size: 9pt; font-weight: bold; color: #1e1b4b; }
+  .method-step-desc { font-size: 8.5pt; color: #4b5563; margin-top: 1pt; }
+  .method-arrow { text-align: center; color: #a5b4fc; font-size: 10pt; margin: 0; }
+
+  /* ---------- Info table (label / value rows, RAG configuration) ---------- */
+  table.info-table { width: 100%; border-collapse: collapse; margin-bottom: 6pt; }
+  table.info-table td {
+    padding: 6pt 8pt;
+    border-bottom: 0.5pt solid #e5e7eb;
+    font-size: 9.5pt;
+  }
+  td.info-label { width: 170pt; font-weight: bold; color: #4b5563; }
+  td.info-value { color: #111827; }
+
+  /* ---------- Confidence factor bars ---------- */
+  table.bar-row { width: 100%; border-collapse: collapse; margin-bottom: 7pt; }
+  table.bar-row td { padding: 2pt 0; vertical-align: middle; }
+  td.bar-label { width: 150pt; font-size: 9pt; color: #374151; }
+  td.bar-value { width: 32pt; font-size: 9pt; font-weight: bold; color: #111827; text-align: right; }
+  td.bar-track-cell { padding: 0 8pt; }
+  table.bar-track { width: 100%; border-collapse: collapse; height: 8pt; background-color: #f3f4f6; border-radius: 4pt; }
+  table.bar-track td { padding: 0; height: 8pt; }
+  .bar-fill-success { background-color: #10b981; }
+  .bar-fill-warning { background-color: #f59e0b; }
+  .bar-fill-danger  { background-color: #ef4444; }
+  .bar-fill-info    { background-color: #0ea5e9; }
+  .bar-fill-neutral { background-color: #9ca3af; }
+  .bar-desc { font-size: 7.5pt; color: #9ca3af; margin: -4pt 0 6pt 0; }
+
+  /* ---------- Evidence cards ---------- */
+  table.evidence-grid { width: 100%; border-collapse: separate; border-spacing: 0 8pt; }
+  table.evidence-grid td.evidence-card {
+    background-color: #f8fafc;
+    border: 0.75pt solid #e0e7ff;
+    border-left: 4pt solid #6366f1;
+    border-radius: 6pt;
+    padding: 9pt 11pt;
+    page-break-inside: avoid;
+  }
+  .evidence-agent-name { font-size: 10pt; font-weight: bold; color: #1e1b4b; }
+  .evidence-agent-role { font-size: 8pt; color: #6b7280; margin-bottom: 5pt; }
+  .evidence-quote {
+    font-size: 8.5pt;
+    color: #374151;
+    padding: 3pt 0 3pt 8pt;
+    border-left: 2pt solid #c7d2fe;
+    margin-bottom: 3pt;
+  }
+  .evidence-note { font-size: 8.5pt; color: #6b7280; margin-top: 4pt; }
+
+  /* ---------- Agent collaboration cards ---------- */
+  table.agent-grid { width: 100%; border-collapse: separate; border-spacing: 6pt; }
+  table.agent-grid td.agent-card {
+    width: 50%;
+    background-color: #ffffff;
+    border: 0.75pt solid #e5e7eb;
+    border-radius: 8pt;
+    padding: 9pt 11pt;
+    vertical-align: top;
+    page-break-inside: avoid;
+  }
+  .agent-name { font-size: 10pt; font-weight: bold; color: #111827; }
+  .agent-role { font-size: 8pt; color: #6b7280; margin-bottom: 6pt; }
+  table.agent-stats { width: 100%; border-collapse: collapse; }
+  table.agent-stats td { font-size: 8.5pt; color: #4b5563; padding: 1.5pt 0; }
+  table.agent-stats td.agent-stat-value { text-align: right; font-weight: bold; color: #111827; }
+  .agent-evidence-heading {
+    font-size: 7.5pt;
+    text-transform: uppercase;
+    letter-spacing: 0.4pt;
+    color: #9ca3af;
+    margin-top: 7pt;
+    margin-bottom: 2pt;
+  }
+  .agent-evidence-item {
+    font-size: 8pt;
+    color: #4b5563;
+    padding: 1.5pt 0 1.5pt 6pt;
+    border-left: 1.5pt solid #c7d2fe;
+    margin-bottom: 2pt;
+  }
+  .agent-evidence-more { font-size: 7.5pt; color: #9ca3af; margin-top: 1pt; }
 </style>
 </head>
 <body>
@@ -251,7 +403,31 @@
         <td>Generated</td>
         <td class="cover-meta-value">{{ report.generated_at.strftime('%B %d, %Y at %H:%M UTC') }}</td>
       </tr>
+      <tr>
+        <td>Mission ID</td>
+        <td class="cover-meta-value" style="font-size:8pt; font-weight:normal;">{{ report.mission_id }}</td>
+      </tr>
+      <tr>
+        <td>Analysis ID</td>
+        <td class="cover-meta-value" style="font-size:8pt; font-weight:normal;">{{ report.analysis_id }}</td>
+      </tr>
+      <tr>
+        <td>MissionOS Version</td>
+        <td class="cover-meta-value">v{{ report.app_version }}</td>
+      </tr>
     </table>
+
+    {% if report.badges %}
+    <table class="badge-strip">
+      {% for row in report.badges | batch(3) %}
+      <tr>
+        {% for badge in row %}
+        <td><span class="tech-badge">{{ badge }}</span></td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+    {% endif %}
 
     <div class="cover-footer">MissionOS — AI-Powered Mission Analysis Platform · Confidential</div>
 
@@ -315,6 +491,31 @@
       <td class="snapshot-label">Final Recommendation</td>
       <td class="snapshot-value">{{ report.executive_analysis.final_recommendation }}</td>
     </tr>
+    <tr>
+      <td class="snapshot-icon">&#8942;</td>
+      <td class="snapshot-label">Data Sources Used</td>
+      <td class="snapshot-value">{{ report.data_sources_used }} dataset{{ 's' if report.data_sources_used != 1 else '' }} analyzed</td>
+    </tr>
+    <tr>
+      <td class="snapshot-icon">&#8942;</td>
+      <td class="snapshot-label">AI Methodology</td>
+      <td class="snapshot-value">{{ report.ai_methodology_summary }}</td>
+    </tr>
+    <tr>
+      <td class="snapshot-icon">&#8942;</td>
+      <td class="snapshot-label">Confidence Explanation</td>
+      <td class="snapshot-value">{{ report.confidence_explanation }}</td>
+    </tr>
+    <tr>
+      <td class="snapshot-icon">&#8942;</td>
+      <td class="snapshot-label">Retrieved Knowledge</td>
+      <td class="snapshot-value">{{ report.retrieved_knowledge_summary }} ({{ report.evidence_coverage_percent }}% agent evidence coverage)</td>
+    </tr>
+    <tr>
+      <td class="snapshot-icon">&#8942;</td>
+      <td class="snapshot-label">Decision Readiness</td>
+      <td class="snapshot-value"><span class="badge badge-{{ report.decision_readiness_variant }}">{{ report.decision_readiness_label }}</span></td>
+    </tr>
   </table>
 
   <!-- ============ CHARTS ============ -->
@@ -344,14 +545,14 @@
   <h2 class="section-header">Dataset Summary</h2>
   <table class="data-table">
     <tr>
-      <th>Dataset</th>
-      <th>Rows</th>
-      <th>Columns</th>
-      <th>Missing Values</th>
-      <th>Duplicate Rows</th>
-      <th>Detected Column Types</th>
-      <th>Validation</th>
-      <th>Quality</th>
+      <th width="16%">Dataset</th>
+      <th width="8%">Rows</th>
+      <th width="9%">Columns</th>
+      <th width="11%">Missing Values</th>
+      <th width="11%">Duplicate Rows</th>
+      <th width="24%">Detected Column Types</th>
+      <th width="11%">Validation</th>
+      <th width="10%">Quality</th>
     </tr>
     {% for ds in report.datasets %}
     <tr>
@@ -367,6 +568,43 @@
     {% endfor %}
   </table>
 
+  <!-- ============ DATASET INTELLIGENCE ============ -->
+  {% if report.dataset_intelligence %}
+  <h2 class="section-header">Dataset Intelligence</h2>
+  <table class="data-table-dense">
+    <tr>
+      <th width="12%">Dataset</th>
+      <th width="5%">Rows</th>
+      <th width="6%">Columns</th>
+      <th width="6%">Missing</th>
+      <th width="6%">Duplicates</th>
+      <th width="5%">Chunks</th>
+      <th width="6%">Total Vectors</th>
+      <th width="20%">Embedding Model</th>
+      <th width="8%">Index Status</th>
+      <th width="8%">Indexed At</th>
+      <th width="9%">Retrieval Ready</th>
+      <th width="9%">Health</th>
+    </tr>
+    {% for ds in report.dataset_intelligence %}
+    <tr>
+      <td>{{ ds.filename }}</td>
+      <td>{{ ds.row_count }}</td>
+      <td>{{ ds.column_count }}</td>
+      <td>{{ ds.missing_value_count }}</td>
+      <td>{{ ds.duplicate_row_count }}</td>
+      <td>{{ ds.chunk_count if ds.chunk_count is not none else 'Not Available' }}</td>
+      <td>{{ ds.total_vectors if ds.total_vectors is not none else 'Not Available' }}</td>
+      <td>{{ ds.embedding_model or 'Not Available' }}</td>
+      <td><span class="badge badge-{{ ds.index_status_variant }}">{{ ds.index_status_label }}</span></td>
+      <td>{{ ds.indexed_at.strftime('%b %d, %Y') if ds.indexed_at else 'Not Available' }}</td>
+      <td>{{ 'Yes' if ds.retrieval_ready else 'No' }}</td>
+      <td><span class="badge badge-{{ ds.health_variant }}">{{ ds.health_percent }}% {{ ds.health_label }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
   <!-- ============ TOP 5 RECOMMENDATIONS ============ -->
   <h2 class="section-header">Top 5 Recommendations</h2>
   <table class="numbered-list">
@@ -377,6 +615,10 @@
     </tr>
     {% endfor %}
   </table>
+  {% for group in report.evidence_groups if group.agent_name == 'Strategy Agent' %}
+  <p class="evidence-note"><strong>Supported by retrieved dataset evidence:</strong></p>
+  <ul>{% for item in group.evidence %}<li class="evidence-note">{{ item }}</li>{% endfor %}</ul>
+  {% endfor %}
 
   <!-- ============ TOP 5 CRITICAL RISKS ============ -->
   <h2 class="section-header">Top 5 Critical Risks</h2>
@@ -396,6 +638,10 @@
   {% else %}
   <p>No critical risks identified.</p>
   {% endif %}
+  {% for group in report.evidence_groups if group.agent_name == 'Risk Agent' %}
+  <p class="evidence-note"><strong>Supported by retrieved dataset evidence:</strong></p>
+  <ul>{% for item in group.evidence %}<li class="evidence-note">{{ item }}</li>{% endfor %}</ul>
+  {% endfor %}
 
   <!-- ============ BUSINESS ROADMAP ============ -->
   <h2 class="section-header">Business Roadmap</h2>
@@ -406,6 +652,223 @@
   </div>
   {% if not loop.last %}<div class="roadmap-arrow">&#8595;</div>{% endif %}
   {% endfor %}
+
+  {% if is_pdf %}<div style="page-break-before: always;"></div>{% endif %}
+
+  <!-- ============ AI ANALYSIS METHODOLOGY ============ -->
+  <h1 class="detail-divider">Enterprise Multi-Agent RAG Platform</h1>
+  <p class="detail-divider-subtitle">How MissionOS turned this mission's uploaded data into the analysis above.</p>
+
+  <h2 class="section-header">AI Analysis Methodology</h2>
+  {% for step in report.methodology %}
+  <div class="method-step">
+    <div class="method-step-label">{{ loop.index }}. {{ step.label }}</div>
+    <div class="method-step-desc">{{ step.description }}</div>
+  </div>
+  {% if not loop.last %}<div class="method-arrow">&#8595;</div>{% endif %}
+  {% endfor %}
+
+  <!-- ============ RETRIEVAL-AUGMENTED GENERATION ============ -->
+  {% if report.rag %}
+  <h2 class="section-header">Retrieval-Augmented Generation (RAG)</h2>
+  <table class="info-table">
+    <tr><td class="info-label">Embedding Model</td><td class="info-value">{{ report.rag.embedding_model or 'Not available' }}</td></tr>
+    <tr><td class="info-label">Vector Store</td><td class="info-value">{{ report.rag.vector_store }}</td></tr>
+    <tr><td class="info-label">Retrieval Strategy</td><td class="info-value">{{ report.rag.retrieval_strategy }}</td></tr>
+    {% if report.rag.top_k is not none %}
+    <tr><td class="info-label">Top-K Retrieval</td><td class="info-value">{{ report.rag.top_k }} chunks per query</td></tr>
+    {% endif %}
+    {% if report.rag.retrieval_time_ms is not none %}
+    <tr><td class="info-label">Retrieval Time</td><td class="info-value">{{ report.rag.retrieval_time_ms }} ms</td></tr>
+    {% endif %}
+    <tr><td class="info-label">Index Status</td><td class="info-value"><span class="badge badge-{{ report.rag.index_status_variant }}">{{ report.rag.index_status_label }}</span></td></tr>
+    <tr><td class="info-label">Last Indexed</td><td class="info-value">{{ report.rag.last_indexed.strftime('%B %d, %Y at %H:%M UTC') if report.rag.last_indexed else 'Not available' }}</td></tr>
+    <tr><td class="info-label">Mission Knowledge Base</td><td class="info-value">{{ report.rag.knowledge_base_sources | join(', ') if report.rag.knowledge_base_sources else 'No datasets indexed yet' }}</td></tr>
+    {% if report.rag.retrieval_query %}
+    <tr><td class="info-label">Retrieval Query</td><td class="info-value">{{ report.rag.retrieval_query }}</td></tr>
+    {% endif %}
+  </table>
+
+  <!-- ============ KNOWLEDGE RETRIEVAL STATISTICS ============ -->
+  <h2 class="section-header">Knowledge Retrieval Statistics</h2>
+  <table class="kpi-row">
+    <tr>
+      <td class="kpi-card">
+        <div class="kpi-label">Total Chunks Indexed</div>
+        <div class="kpi-value">{{ report.rag.total_chunks_indexed }}</div>
+        <div class="kpi-caption">Across this mission's knowledge base</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">Chunks Retrieved</div>
+        <div class="kpi-value">{{ report.rag.chunks_retrieved if report.rag.chunks_retrieved is not none else '—' }}</div>
+        <div class="kpi-caption">For this analysis run</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">Avg. Similarity Score</div>
+        <div class="kpi-value">{{ (report.rag.average_similarity_score * 100) | round | int if report.rag.average_similarity_score is not none else '—' }}{{ '%' if report.rag.average_similarity_score is not none else '' }}</div>
+        <div class="kpi-caption">Semantic relevance of retrieved evidence</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="kpi-card">
+        <div class="kpi-label">Embedding Requests</div>
+        <div class="kpi-value">{{ '1' if report.rag.chunks_retrieved is not none else '—' }}</div>
+        <div class="kpi-caption">Query embedding, shared across all agents</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">Vector Searches</div>
+        <div class="kpi-value">{{ '1' if report.rag.chunks_retrieved is not none else '—' }}</div>
+        <div class="kpi-caption">Single semantic search per analysis run</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">Retrieval Success</div>
+        <div class="kpi-value">{{ 'Yes' if report.rag.chunks_retrieved and report.rag.chunks_retrieved > 0 else 'No Matches' if report.rag.chunks_retrieved == 0 else '—' }}</div>
+        <div class="kpi-caption">Whether relevant evidence was found</div>
+      </td>
+    </tr>
+    <tr>
+      <td class="kpi-card">
+        <div class="kpi-label">Retrieved Sources</div>
+        <div class="kpi-value">{{ report.rag.knowledge_base_sources | length if report.rag.knowledge_base_sources else 'Not Available' }}</div>
+        <div class="kpi-caption">{{ report.rag.knowledge_base_sources | join(', ') if report.rag.knowledge_base_sources else 'No indexed datasets' }}</div>
+      </td>
+      <td class="kpi-card">
+        <div class="kpi-label">Embedding Model</div>
+        <div class="kpi-value" style="font-size:12pt;">{{ report.rag.embedding_model or 'Not Available' }}</div>
+        <div class="kpi-caption">Used to embed both chunks and queries</div>
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+
+  <!-- ============ RETRIEVAL ANALYTICS ============ -->
+  {% if report.retrieval_analytics %}
+  <h2 class="section-header">Retrieval Analytics</h2>
+  <p style="color:#6b7280; font-size:9pt; margin-bottom:8pt;">Metrics from the single retrieval call made for this analysis run — every value below is either a direct measurement or a structural fact of the retrieval architecture (one query, one vector search per run).</p>
+  <table class="info-table">
+    <tr>
+      <td class="info-label">Retrieval Latency</td>
+      <td class="info-value">{{ '%.1f ms' | format(report.retrieval_analytics.retrieval_latency_ms) if report.retrieval_analytics.retrieval_latency_ms is not none else 'Not Available' }}</td>
+    </tr>
+    <tr>
+      <td class="info-label">Query Count</td>
+      <td class="info-value">{{ report.retrieval_analytics.query_count if report.retrieval_analytics.query_count is not none else 'Not Available' }}</td>
+    </tr>
+    <tr>
+      <td class="info-label">Embedding Requests</td>
+      <td class="info-value">{{ report.retrieval_analytics.embedding_requests if report.retrieval_analytics.embedding_requests is not none else 'Not Available' }}</td>
+    </tr>
+    <tr>
+      <td class="info-label">Retrieved Chunks</td>
+      <td class="info-value">{{ report.retrieval_analytics.retrieved_chunks if report.retrieval_analytics.retrieved_chunks is not none else 'Not Available' }}</td>
+    </tr>
+    <tr>
+      <td class="info-label">Average Similarity</td>
+      <td class="info-value">{{ (report.retrieval_analytics.average_similarity_score * 100) | round | int ~ '%' if report.retrieval_analytics.average_similarity_score is not none else 'Not Available' }}</td>
+    </tr>
+    <tr>
+      <td class="info-label">Context Size</td>
+      <td class="info-value">{{ (report.retrieval_analytics.context_size_chars | string ~ ' characters') if report.retrieval_analytics.context_size_chars is not none else 'Not Available' }}</td>
+    </tr>
+    <tr>
+      <td class="info-label">Indexed Documents</td>
+      <td class="info-value">{{ report.retrieval_analytics.indexed_documents if report.retrieval_analytics.indexed_documents is not none else 'Not Available' }}</td>
+    </tr>
+  </table>
+  {% endif %}
+
+  <!-- ============ AI CONFIDENCE BREAKDOWN ============ -->
+  {% if report.confidence_factors %}
+  <h2 class="section-header">AI Confidence Breakdown</h2>
+  <p style="color:#6b7280; font-size:9pt; margin-bottom:8pt;">The {{ (report.kpis[1].value) }} overall AI Confidence score above is calculated from the following real, measured signals — not a single opaque number.</p>
+  {% for factor in report.confidence_factors %}
+  <table class="bar-row">
+    <tr>
+      <td class="bar-label">{{ factor.label }}</td>
+      <td class="bar-track-cell">
+        <table class="bar-track"><tr>
+          <td class="bar-fill-{{ factor.variant }}" style="width:{{ factor.value_percent }}%;">&nbsp;</td>
+          <td style="width:{{ 100 - factor.value_percent }}%;">&nbsp;</td>
+        </tr></table>
+      </td>
+      <td class="bar-value">{{ factor.value_percent }}%</td>
+    </tr>
+  </table>
+  <p class="bar-desc">{{ factor.description }}</p>
+  {% endfor %}
+  {% endif %}
+
+  <!-- ============ AI AGENT COLLABORATION ============ -->
+  {% if report.agent_collaboration %}
+  <h2 class="section-header">AI Agent Collaboration</h2>
+  <table class="agent-grid">
+    <tr>
+      {% for agent in report.agent_collaboration[:2] %}
+      <td class="agent-card">
+        <div class="agent-name">{{ agent.name }}</div>
+        <div class="agent-role">{{ agent.role }}</div>
+        <table class="agent-stats">
+          <tr><td>Confidence</td><td class="agent-stat-value"><span class="badge badge-{{ agent.confidence_variant }}">{{ agent.confidence_percent }}%</span></td></tr>
+          <tr><td>Chunks Retrieved</td><td class="agent-stat-value">{{ agent.chunks_retrieved if agent.chunks_retrieved is not none else 'Not Available' }}</td></tr>
+          <tr><td>Evidence Count</td><td class="agent-stat-value">{{ agent.evidence_count }} citation{{ 's' if agent.evidence_count != 1 else '' }}</td></tr>
+          <tr><td>Output Status</td><td class="agent-stat-value"><span class="badge badge-{{ agent.status_variant }}">{{ agent.status_label }}</span></td></tr>
+        </table>
+        {% if agent.evidence %}
+        <div class="agent-evidence-heading">Evidence Used</div>
+        {% for item in agent.evidence[:2] %}
+        <div class="agent-evidence-item">&#8220;{{ item[:140] }}{{ '…' if item | length > 140 else '' }}&#8221;</div>
+        {% endfor %}
+        {% if agent.evidence | length > 2 %}
+        <div class="agent-evidence-more">+{{ agent.evidence | length - 2 }} more in the Evidence Used section</div>
+        {% endif %}
+        {% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+    <tr>
+      {% for agent in report.agent_collaboration[2:4] %}
+      <td class="agent-card">
+        <div class="agent-name">{{ agent.name }}</div>
+        <div class="agent-role">{{ agent.role }}</div>
+        <table class="agent-stats">
+          <tr><td>Confidence</td><td class="agent-stat-value"><span class="badge badge-{{ agent.confidence_variant }}">{{ agent.confidence_percent }}%</span></td></tr>
+          <tr><td>Chunks Retrieved</td><td class="agent-stat-value">{{ agent.chunks_retrieved if agent.chunks_retrieved is not none else 'Not Available' }}</td></tr>
+          <tr><td>Evidence Count</td><td class="agent-stat-value">{{ agent.evidence_count }} citation{{ 's' if agent.evidence_count != 1 else '' }}</td></tr>
+          <tr><td>Output Status</td><td class="agent-stat-value"><span class="badge badge-{{ agent.status_variant }}">{{ agent.status_label }}</span></td></tr>
+        </table>
+        {% if agent.evidence %}
+        <div class="agent-evidence-heading">Evidence Used</div>
+        {% for item in agent.evidence[:2] %}
+        <div class="agent-evidence-item">&#8220;{{ item[:140] }}{{ '…' if item | length > 140 else '' }}&#8221;</div>
+        {% endfor %}
+        {% if agent.evidence | length > 2 %}
+        <div class="agent-evidence-more">+{{ agent.evidence | length - 2 }} more in the Evidence Used section</div>
+        {% endif %}
+        {% endif %}
+      </td>
+      {% endfor %}
+    </tr>
+  </table>
+  {% endif %}
+
+  <!-- ============ EVIDENCE USED ============ -->
+  {% if report.evidence_groups %}
+  <h2 class="section-header">Evidence Used</h2>
+  <p style="color:#6b7280; font-size:9pt; margin-bottom:8pt;">Retrieved dataset evidence each agent cited to ground its analysis — quoted exactly as the agent recorded it.</p>
+  <table class="evidence-grid">
+    {% for group in report.evidence_groups %}
+    <tr>
+      <td class="evidence-card">
+        <div class="evidence-agent-name">{{ group.agent_name }}</div>
+        <div class="evidence-agent-role">{{ group.agent_role }}</div>
+        {% for item in group.evidence %}
+        <div class="evidence-quote">&#8220;{{ item }}&#8221;</div>
+        {% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
 
   {% if is_pdf %}<div style="page-break-before: always;"></div>{% endif %}
 
@@ -472,6 +935,44 @@
     <ul>{% for item in report.executive_analysis.trade_offs %}<li>{{ item }}</li>{% endfor %}</ul>
     <h3 class="sub-header">Final Recommendation</h3>
     <p>{{ report.executive_analysis.final_recommendation }}</p>
+
+    <h3 class="sub-header">Decision Confidence</h3>
+    <table class="info-table">
+      <tr>
+        <td class="info-label">Overall AI Confidence</td>
+        <td class="info-value">{{ report.kpis[1].value }} ({{ report.kpis[1].badge_label }})</td>
+      </tr>
+      <tr>
+        <td class="info-label">Number of AI Agents</td>
+        <td class="info-value">{{ report.agent_collaboration | length if report.agent_collaboration else 'Not Available' }}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Indexed Chunks</td>
+        <td class="info-value">{{ report.rag.total_chunks_indexed if report.rag else 'Not Available' }}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Retrieved Chunks</td>
+        <td class="info-value">{{ report.rag.chunks_retrieved if report.rag and report.rag.chunks_retrieved is not none else 'Not Available' }}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Embedding Model</td>
+        <td class="info-value">{{ report.rag.embedding_model if report.rag and report.rag.embedding_model else 'Not Available' }}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Vector Store</td>
+        <td class="info-value">{{ report.rag.vector_store if report.rag else 'Not Available' }}</td>
+      </tr>
+      <tr>
+        <td class="info-label">Retrieval Status</td>
+        <td class="info-value">
+          {% if report.rag %}
+          <span class="badge badge-{{ report.rag.index_status_variant }}">{{ report.rag.index_status_label }}</span>
+          {% else %}
+          Not Available
+          {% endif %}
+        </td>
+      </tr>
+    </table>
   </div>
 
   {% if is_pdf %}<div style="page-break-before: always;"></div>{% endif %}
@@ -480,7 +981,7 @@
   {% if report.risk_analysis.critical_risks %}
   <table class="data-table">
     <tr>
-      <th>Title</th><th>Category</th><th>Severity</th><th>Probability</th><th>Impact</th><th>Mitigation</th>
+      <th width="16%">Title</th><th width="12%">Category</th><th width="10%">Severity</th><th width="10%">Probability</th><th width="26%">Impact</th><th width="26%">Mitigation</th>
     </tr>
     {% for risk in report.risk_analysis.critical_risks %}
     <tr>
@@ -496,6 +997,10 @@
   {% else %}
   <p>No risks were identified for this mission.</p>
   {% endif %}
+  {% for group in report.evidence_groups if group.agent_name == 'Risk Agent' %}
+  <h3 class="sub-header">Evidence Supporting This Risk Register</h3>
+  <ul>{% for item in group.evidence %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% endfor %}
 
   {% if is_pdf %}
   <div id="footer_content" class="footer-text">

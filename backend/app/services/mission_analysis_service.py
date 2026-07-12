@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 import uuid
 from datetime import UTC, datetime
 
@@ -29,6 +30,7 @@ from app.models.mission_analysis import MissionAnalysis
 from app.models.user import User
 from app.rag.embedding_service import OpenAIEmbeddingClient
 from app.rag.exceptions import RagException
+from app.rag.models import RetrievalStats
 from app.rag.retrieval_service import RetrievalService
 from app.rag.vector_store import ChromaVectorStore
 from app.repositories.mission_analysis_repository import MissionAnalysisRepository
@@ -150,16 +152,23 @@ def _build_retrieval_service() -> RetrievalService:
     )
 
 
-async def _retrieve_context(mission: Mission) -> list[RetrievedChunk]:
+async def _retrieve_context(
+    mission: Mission,
+) -> tuple[list[RetrievedChunk], RetrievalStats | None]:
     """Best-effort retrieval: RAG is additive on top of a pipeline that
     already worked without it, so a retrieval failure (embedding API down,
     vector store unavailable, nothing indexed yet) degrades to "no retrieved
-    context" rather than failing the entire analysis run."""
+    context" rather than failing the entire analysis run. The `RetrievalStats`
+    snapshot (or `None`, if retrieval couldn't run at all) is what
+    `run_analysis_pipeline` persists onto `MissionAnalysis.retrieval_stats`
+    for the report/dashboard to show genuine RAG metrics from — never
+    recomputed after the fact, and never fabricated when retrieval failed.
+    """
+    query = _default_retrieval_query(mission)
+    started = time.perf_counter()
     try:
         retrieval = _build_retrieval_service()
-        matches = await retrieval.retrieve(
-            mission_id=mission.id, query_text=_default_retrieval_query(mission)
-        )
+        matches = await retrieval.retrieve(mission_id=mission.id, query_text=query)
     except RagException as exc:
         logger.warning(
             "RAG retrieval failed for mission %s, proceeding without it: %s: %s",
@@ -167,9 +176,24 @@ async def _retrieve_context(mission: Mission) -> list[RetrievedChunk]:
             type(exc).__name__,
             exc,
         )
-        return []
+        return [], None
+    elapsed_ms = (time.perf_counter() - started) * 1000
 
-    return [
+    sources = sorted({str(match.metadata.get("filename", "unknown")) for match in matches})
+    stats = RetrievalStats(
+        query=query,
+        top_k=settings.rag_top_k,
+        chunks_retrieved=len(matches),
+        average_similarity_score=(
+            sum(match.score for match in matches) / len(matches) if matches else None
+        ),
+        retrieval_time_ms=round(elapsed_ms, 1),
+        sources=sources,
+        embedding_model=settings.openai_embedding_model,
+        total_context_chars=sum(len(match.text) for match in matches),
+    )
+
+    retrieved_context = [
         RetrievedChunk(
             text=match.text,
             source_filename=str(match.metadata.get("filename", "unknown")),
@@ -177,16 +201,20 @@ async def _retrieve_context(mission: Mission) -> list[RetrievedChunk]:
         )
         for match in matches
     ]
+    return retrieved_context, stats
 
 
-async def _run_pipeline_async(mission: Mission, datasets: list[Dataset]) -> AnalysisResult:
+async def _run_pipeline_async(
+    mission: Mission, datasets: list[Dataset]
+) -> tuple[AnalysisResult, RetrievalStats | None]:
     """Retrieves this mission's relevant evidence once, then runs the
     four-agent orchestrator with it attached — bridged into with a single
     `asyncio.run()` call from the sync background task below, rather than
     one `asyncio.run()` for retrieval and a second for the orchestrator."""
-    retrieved_context = await _retrieve_context(mission)
+    retrieved_context, stats = await _retrieve_context(mission)
     request = build_analysis_request(mission, datasets, retrieved_context=retrieved_context)
-    return await _build_orchestrator().run(request)
+    result = await _build_orchestrator().run(request)
+    return result, stats
 
 
 def run_analysis_pipeline(mission_id: uuid.UUID) -> None:
@@ -217,8 +245,11 @@ def run_analysis_pipeline(mission_id: uuid.UUID) -> None:
             if not datasets:
                 raise AIException("No validated datasets remain for this mission.")
 
-            result = asyncio.run(_run_pipeline_async(mission, datasets))
+            result, retrieval_stats = asyncio.run(_run_pipeline_async(mission, datasets))
 
+            analysis.retrieval_stats = (
+                retrieval_stats.model_dump(mode="json") if retrieval_stats else None
+            )
             analysis.business_analysis = (
                 result.business_analysis.model_dump(mode="json")
                 if result.business_analysis

@@ -26,6 +26,7 @@ class MissionAnalysisRepository:
             existing.strategy_analysis = None
             existing.risk_analysis = None
             existing.executive_analysis = None
+            existing.retrieval_stats = None
             existing.error_message = None
             existing.started_at = None
             existing.completed_at = None

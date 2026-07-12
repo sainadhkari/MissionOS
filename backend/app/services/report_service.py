@@ -8,8 +8,10 @@ from app.ai.models import (
     RiskAnalysisOutput,
     StrategyAnalysisOutput,
 )
+from app.config.settings import settings
 from app.models.enums import AnalysisStatus
 from app.models.user import User
+from app.rag.models import RetrievalStats
 from app.reports import charts, derive
 from app.reports.exceptions import UnsupportedReportFormatError
 from app.reports.html_renderer import render_html
@@ -61,8 +63,32 @@ class ReportService:
         datasets = mission_analysis_service._ready_datasets(db, mission.id)
         dataset_breakdown = derive.dataset_column_breakdown(datasets)
 
+        retrieval_stats = (
+            RetrievalStats.model_validate(analysis.retrieval_stats)
+            if analysis.retrieval_stats
+            else None
+        )
+        rag_section = derive.build_rag_section(datasets, retrieval_stats)
+        evidence_groups = derive.build_evidence_groups(business, strategy, risk, executive)
+        confidence_factors = derive.build_confidence_factors(
+            business=business,
+            strategy=strategy,
+            risk=risk,
+            executive=executive,
+            datasets=datasets,
+            retrieval_stats=retrieval_stats,
+            analysis_status=analysis.status,
+        )
+        ai_confidence = derive.average_confidence(business, strategy, risk, executive)
+        readiness_label, readiness_variant = derive.decision_readiness(ai_confidence)
+        evidence_coverage_percent = derive.evidence_coverage_percent(
+            business, strategy, risk, executive
+        )
+
         return ReportData(
             mission_id=mission.id,
+            analysis_id=analysis.id,
+            app_version=settings.app_version,
             mission=ReportMissionInfo(
                 title=mission.title,
                 business_domain=mission.business_domain,
@@ -111,6 +137,33 @@ class ReportService:
             roadmap=derive.parse_roadmap(strategy.implementation_roadmap),
             biggest_opportunity=derive.biggest_opportunity(business),
             highest_risk_summary=derive.highest_risk_summary(risk),
+            retrieval_stats=retrieval_stats,
+            methodology=derive.build_methodology_steps(),
+            rag=rag_section,
+            evidence_groups=evidence_groups,
+            confidence_factors=confidence_factors,
+            agent_collaboration=derive.build_agent_collaboration(
+                business=business,
+                strategy=strategy,
+                risk=risk,
+                executive=executive,
+                retrieval_stats=retrieval_stats,
+            ),
+            dataset_intelligence=derive.build_dataset_intelligence(datasets),
+            retrieval_analytics=derive.build_retrieval_analytics(retrieval_stats, datasets),
+            badges=derive.build_badges(rag_section, evidence_groups),
+            data_sources_used=len(datasets),
+            evidence_coverage_percent=evidence_coverage_percent,
+            ai_methodology_summary=(
+                "Multi-agent Retrieval-Augmented Generation pipeline "
+                "(Business → Strategy → Risk → Executive)"
+            ),
+            confidence_explanation=derive.build_confidence_explanation(
+                confidence_factors, ai_confidence
+            ),
+            retrieved_knowledge_summary=derive.build_retrieved_knowledge_summary(rag_section),
+            decision_readiness_label=readiness_label,
+            decision_readiness_variant=readiness_variant,
         )
 
     def render(self, data: ReportData, report_format: ReportFormat) -> tuple[bytes, str]:
