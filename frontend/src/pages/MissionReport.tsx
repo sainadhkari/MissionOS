@@ -4,15 +4,16 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
-  Briefcase,
-  CalendarClock,
   CheckCircle2,
   Database,
-  Flag,
+  FlaskConical,
+  HeartPulse,
   Loader2,
+  Network,
+  Quote,
+  Rocket,
   ShieldAlert,
   Sparkles,
-  Target,
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
@@ -22,19 +23,33 @@ import EmptyState from '../components/EmptyState'
 import Badge from '../components/Badge'
 import { buttonClasses } from '../components/Button'
 import ExportReportMenu from '../components/ExportReportMenu'
+import ExplainabilityPanel from '../components/Explainability'
 import KpiCard from '../components/KpiCard'
-import ConfidenceGauge from '../components/ConfidenceGauge'
-import OpportunitiesBarChart from '../components/OpportunitiesBarChart'
 import RiskCategoryChart from '../components/RiskCategoryChart'
 import DatasetSummaryChart from '../components/DatasetSummaryChart'
+import { ChartCard } from '../components/Charts'
+import {
+  AIConfidenceTrend,
+  BusinessImpactWaterfall,
+  DecisionStrengthGauge,
+  EvidenceCoverageChart,
+  AgentContributionChart,
+  ExecutiveScorecard,
+  KnowledgeContributionChart,
+  RecommendationCategoryChart,
+  RetrievalAnalyticsChart,
+  RiskDistributionChart,
+  TimelineChart,
+} from '../components/analytics'
 import { BulletList } from '../components/AnalysisSection'
 import { useAnalysisPolling } from '../hooks/useAnalysisPolling'
 import { useMissionDatasets } from '../hooks/useMissionDatasets'
 import { missionService } from '../services/mission'
 import { getErrorMessage } from '../utils/http'
-import { formatDate } from '../utils/date'
-import { ROUTES, missionDetailsPath } from '../constants/routes'
+import { ROUTES, aiCollaborationCenterPath, missionDetailsPath, scenarioSimulatorPath } from '../constants/routes'
 import { severityBadgeVariant } from '../utils/analysis'
+import { buildConsensusMetrics } from '../utils/collaborationCenter'
+import { buildMissionHealthScore, deploymentReadinessPercent } from '../utils/analyticsCharts'
 import {
   averageConfidence,
   capitalize,
@@ -108,6 +123,14 @@ function MissionReport() {
           <>
             <Link to={missionDetailsPath(mission.id)} className={buttonClasses('outline', 'sm')}>
               Back to Mission
+            </Link>
+            <Link to={aiCollaborationCenterPath(mission.id)} className={buttonClasses('outline', 'sm')}>
+              <Network className="h-4 w-4" aria-hidden="true" />
+              AI Collaboration Center
+            </Link>
+            <Link to={scenarioSimulatorPath(mission.id)} className={buttonClasses('outline', 'sm')}>
+              <FlaskConical className="h-4 w-4" aria-hidden="true" />
+              Scenario Simulator
             </Link>
             {showExport && <ExportReportMenu missionId={mission.id} />}
           </>
@@ -197,24 +220,25 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
   }
 
   const aiConfidence = averageConfidence(analysis)
-  const datasetQuality = datasets.status === 'success' ? computeDatasetQuality(datasets.data) : null
-  const hasDatasetProfile =
-    datasets.status === 'success' && datasets.data.some((dataset) => dataset.upload_status === 'ready' && dataset.profile)
+  const activeDatasets = datasets.status === 'success' ? datasets.data : []
+  const datasetQuality = computeDatasetQuality(activeDatasets)
+  const hasDatasetProfile = activeDatasets.some((dataset) => dataset.upload_status === 'ready' && dataset.profile)
   const recommendations = topRecommendations(strategy_analysis)
   const risks = topRisks(risk_analysis.critical_risks)
 
-  const agents = [
-    { label: 'Business Analyst', icon: Briefcase, confidence: business_analysis.confidence },
-    { label: 'Strategy', icon: Target, confidence: strategy_analysis.confidence },
-    { label: 'Risk', icon: ShieldAlert, confidence: risk_analysis.confidence },
-    { label: 'Executive', icon: Sparkles, confidence: executive_analysis.confidence },
-  ]
+  const evidenceGroups = [
+    { label: 'Business', icon: Database, evidenceUsed: business_analysis.evidence_used },
+    { label: 'Strategy', icon: Database, evidenceUsed: strategy_analysis.evidence_used },
+    { label: 'Risk', icon: Database, evidenceUsed: risk_analysis.evidence_used },
+    { label: 'Executive', icon: Database, evidenceUsed: executive_analysis.evidence_used },
+  ].filter((agent) => agent.evidenceUsed.length > 0)
 
-  const timeline = [
-    { label: 'Mission Created', timestamp: mission.created_at },
-    { label: 'Analysis Started', timestamp: analysis.started_at },
-    { label: 'Analysis Completed', timestamp: analysis.completed_at },
-  ].filter((entry): entry is { label: string; timestamp: string } => Boolean(entry.timestamp))
+  const consensusMetrics = buildConsensusMetrics(analysis, activeDatasets)
+  const missionHealthPercent = buildMissionHealthScore(analysis, activeDatasets)
+  const deploymentReadinessPct = deploymentReadinessPercent(
+    Math.round(executive_analysis.confidence * 100),
+    risk_analysis.overall_risk_level
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -237,14 +261,15 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* Hero KPI Row */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <KpiCard
           icon={Activity}
           label="Business Health"
           value={`${Math.round(business_analysis.confidence * 100)}%`}
           badgeLabel={confidenceLabel(business_analysis.confidence)}
           badgeVariant={confidenceBadgeVariant(business_analysis.confidence)}
-          caption="Business analysis confidence"
+          caption="Business Agent confidence"
         />
         <KpiCard
           icon={Sparkles}
@@ -252,23 +277,27 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
           value={aiConfidence !== null ? `${Math.round(aiConfidence * 100)}%` : '—'}
           badgeLabel={aiConfidence !== null ? confidenceLabel(aiConfidence) : undefined}
           badgeVariant={aiConfidence !== null ? confidenceBadgeVariant(aiConfidence) : undefined}
-          caption="Average across all four analyses"
+          caption="Average across all four agents"
+        />
+        <KpiCard
+          icon={HeartPulse}
+          label="Mission Health"
+          value={missionHealthPercent !== null ? `${missionHealthPercent}%` : '—'}
+          caption="Confidence + quality + coverage"
+        />
+        <KpiCard
+          icon={Rocket}
+          label="Deployment Readiness"
+          value={deploymentReadinessPct !== null ? `${deploymentReadinessPct}%` : '—'}
+          caption="Confidence weighed against risk"
         />
         <KpiCard
           icon={ShieldAlert}
-          label="Risk Level"
+          label="Risk Score"
           value={capitalize(risk_analysis.overall_risk_level)}
           badgeLabel={`${risk_analysis.critical_risks.length} risks`}
           badgeVariant={severityBadgeVariant(risk_analysis.overall_risk_level)}
           caption="Overall assessed risk"
-        />
-        <KpiCard
-          icon={Flag}
-          label="Priority"
-          value={capitalize(strategy_analysis.priority)}
-          badgeLabel={capitalize(strategy_analysis.priority)}
-          badgeVariant={severityBadgeVariant(strategy_analysis.priority)}
-          caption="Recommended strategic priority"
         />
         <KpiCard
           icon={Database}
@@ -284,86 +313,86 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <Card className="flex items-center justify-center">
-          {aiConfidence !== null ? (
-            <ConfidenceGauge value={aiConfidence} />
-          ) : (
-            <EmptyState icon={Sparkles} title="No confidence score yet" />
-          )}
-        </Card>
+      <ExecutiveScorecard analysis={analysis} />
 
-        <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Agent Status</h2>
-          <div className="flex flex-col gap-3">
-            {agents.map(({ label, icon: Icon, confidence }) => (
-              <div key={label} className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 text-sm text-neutral-700 dark:text-neutral-300">
-                  <Icon className="h-4 w-4 text-neutral-400" aria-hidden="true" />
-                  {label}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Badge variant={confidenceBadgeVariant(confidence)}>{Math.round(confidence * 100)}%</Badge>
-                  <Badge variant="success">Complete</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mission Timeline</h2>
-          <ol className="flex flex-col gap-4">
-            {timeline.map((entry, index) => (
-              <li key={entry.label} className="flex items-start gap-3">
-                <span className="flex flex-col items-center">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 dark:bg-primary-950/60 dark:text-primary-400">
-                    <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
-                  </span>
-                  {index < timeline.length - 1 && <span className="mt-1 h-6 w-px bg-neutral-200 dark:bg-neutral-800" />}
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{entry.label}</p>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400">{formatDate(entry.timestamp)}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </Card>
-
-        <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Business Impact</h2>
-          <p className="text-sm text-neutral-700 dark:text-neutral-300">{strategy_analysis.business_impact}</p>
-        </Card>
+      {/* Business Intelligence */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Business Intelligence</h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <BusinessImpactWaterfall analysis={analysis} />
+          <RiskDistributionChart risk={risk_analysis} />
+          <RecommendationCategoryChart analysis={analysis} />
+          <ChartCard title="Risk Categories" icon={ShieldAlert} caption="Critical risks grouped by category" available={risk_analysis.critical_risks.length > 0}>
+            <RiskCategoryChart risks={risk_analysis.critical_risks} />
+          </ChartCard>
+        </div>
+        <div className="mt-4">
+          <TimelineChart mission={mission} datasets={activeDatasets} analysis={analysis} />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Business Output Breakdown</h2>
-          <OpportunitiesBarChart business={business_analysis} />
-        </Card>
-        <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Risk Categories</h2>
-          {risk_analysis.critical_risks.length === 0 ? (
-            <EmptyState icon={ShieldAlert} title="No critical risks identified" />
-          ) : (
-            <RiskCategoryChart risks={risk_analysis.critical_risks} />
-          )}
-        </Card>
-        <Card>
-          <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Dataset Column Types</h2>
-          {hasDatasetProfile && datasets.status === 'success' ? (
-            <DatasetSummaryChart datasets={datasets.data} />
-          ) : (
-            <EmptyState icon={Database} title="No dataset profile available" />
-          )}
-        </Card>
+      {/* AI Analytics */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">AI Analytics</h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <AIConfidenceTrend analysis={analysis} />
+          <EvidenceCoverageChart analysis={analysis} />
+          <AgentContributionChart analysis={analysis} />
+          <KnowledgeContributionChart analysis={analysis} />
+          <DecisionStrengthGauge decisionStrengthPercent={consensusMetrics.decisionStrengthPercent} />
+        </div>
+      </div>
+
+      {/* RAG Analytics */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">RAG Analytics</h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <RetrievalAnalyticsChart analysis={analysis} datasets={activeDatasets} />
+          <ChartCard title="Dataset Intelligence" icon={Database} caption="Column type composition across all datasets" available={hasDatasetProfile}>
+            <DatasetSummaryChart datasets={activeDatasets} />
+          </ChartCard>
+        </div>
       </div>
 
       <Card>
         <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Executive Summary</h2>
         <p className="text-sm text-neutral-700 dark:text-neutral-300">{executive_analysis.executive_summary}</p>
       </Card>
+
+      {evidenceGroups.length > 0 && (
+        <Card>
+          <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+            <Quote className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+            Evidence Used
+          </h2>
+          <p className="mb-4 text-xs text-neutral-500 dark:text-neutral-400">
+            Retrieved dataset evidence each agent cited to ground its analysis.
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {evidenceGroups.map(({ label, icon: Icon, evidenceUsed }) => (
+              <div
+                key={label}
+                className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-800/40"
+              >
+                <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                  <Icon className="h-4 w-4 text-primary-500" aria-hidden="true" />
+                  {label} Agent
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {evidenceUsed.map((item, index) => (
+                    <li
+                      key={index}
+                      className="border-l-2 border-primary-200 pl-2.5 text-xs text-neutral-600 dark:border-primary-800 dark:text-neutral-400"
+                    >
+                      &ldquo;{item}&rdquo;
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -392,12 +421,14 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
           )}
         </Card>
       </div>
+
+      <ExplainabilityPanel analysis={analysis} datasets={activeDatasets} />
     </div>
   )
 }
 
 /** A compact confidence readout for the hero banner, tuned for a colored
- * gradient background rather than the card surface `ConfidenceGauge` targets. */
+ * gradient background rather than a card surface. */
 function ConfidenceGaugeLight({ value }: { value: number }) {
   return (
     <div className="flex flex-col items-center gap-1 px-2">

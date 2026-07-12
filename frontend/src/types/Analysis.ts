@@ -8,6 +8,7 @@ export interface BusinessAnalysis {
   important_metrics: string[]
   recommended_next_steps: string[]
   confidence: number
+  evidence_used: string[]
 }
 
 export interface StrategyAnalysis {
@@ -18,6 +19,7 @@ export interface StrategyAnalysis {
   business_impact: string
   priority: string
   confidence: number
+  evidence_used: string[]
 }
 
 export interface RiskItem {
@@ -35,6 +37,7 @@ export interface RiskAnalysis {
   recommended_mitigations: string[]
   overall_risk_level: string
   confidence: number
+  evidence_used: string[]
 }
 
 export interface ExecutiveAnalysis {
@@ -43,6 +46,26 @@ export interface ExecutiveAnalysis {
   trade_offs: string[]
   final_recommendation: string
   confidence: number
+  evidence_used: string[]
+}
+
+/** Structural shape shared by all four agent outputs — every one of them
+ * carries its own confidence score and evidence citations, which is all
+ * the explainability views need to treat them uniformly. */
+export interface AnalysisOutput {
+  confidence: number
+  evidence_used: string[]
+}
+
+export interface RetrievalStats {
+  query: string
+  top_k: number
+  chunks_retrieved: number
+  average_similarity_score: number | null
+  retrieval_time_ms: number
+  sources: string[]
+  embedding_model: string
+  vector_store: string
 }
 
 export interface MissionAnalysis {
@@ -53,6 +76,7 @@ export interface MissionAnalysis {
   strategy_analysis: StrategyAnalysis | null
   risk_analysis: RiskAnalysis | null
   executive_analysis: ExecutiveAnalysis | null
+  retrieval_stats: RetrievalStats | null
   error_message: string | null
   started_at: string | null
   completed_at: string | null

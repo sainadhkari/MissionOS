@@ -20,6 +20,17 @@ import DatasetUploader from '../components/DatasetUploader'
 import AnimatedCounter from '../components/AnimatedCounter'
 import { ListCardSkeleton } from '../components/Skeleton'
 import { buttonClasses } from '../components/Button'
+import DatasetSummaryChart from '../components/DatasetSummaryChart'
+import { ChartCard } from '../components/Charts'
+import {
+  DatasetQualityGauge,
+  StorageUsageChart,
+  DatasetStatisticsChart,
+  MissingValuesChart,
+  DuplicateDistributionChart,
+  DataCompletenessChart,
+  FileSizeComparisonChart,
+} from '../components/analytics'
 import { missionDetailsPath, datasetDetailsPath } from '../constants/routes'
 import { useMissions } from '../hooks/useMissions'
 import { useAllDatasets } from '../hooks/useAllDatasets'
@@ -174,6 +185,28 @@ function DataLibrary() {
           </p>
         </Card>
       </div>
+
+      {datasetsState.status === 'success' && datasets.length > 0 && (
+        <div className="mb-4">
+          <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Data Analytics</h2>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <DatasetQualityGauge datasets={datasets} />
+            <StorageUsageChart datasets={datasets} />
+            <DatasetStatisticsChart datasets={datasets} />
+            <ChartCard
+              title="Schema Composition"
+              caption="Column types across every validated dataset"
+              available={datasets.some((d) => d.upload_status === 'ready' && d.profile)}
+            >
+              <DatasetSummaryChart datasets={datasets} />
+            </ChartCard>
+            <MissingValuesChart datasets={datasets} />
+            <DuplicateDistributionChart datasets={datasets} />
+            <DataCompletenessChart datasets={datasets} />
+            <FileSizeComparisonChart datasets={datasets} />
+          </div>
+        </div>
+      )}
 
       <Card>
         <h2 className="mb-4 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Uploaded Datasets</h2>

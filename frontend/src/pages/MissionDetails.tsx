@@ -7,6 +7,8 @@ import {
   Calendar,
   Database,
   Flag,
+  FlaskConical,
+  Network,
   Pencil,
   RefreshCw,
   Sparkles,
@@ -22,10 +24,28 @@ import EmptyState from '../components/EmptyState'
 import Button, { buttonClasses } from '../components/Button'
 import DatasetUploader from '../components/DatasetUploader'
 import MissionAnalysisSection from '../components/MissionAnalysisSection'
-import { ROUTES, editMissionPath, missionReportPath, datasetDetailsPath } from '../constants/routes'
+import ExplainabilityPanel from '../components/Explainability'
+import {
+  MissionHealthScore,
+  MissionProgressChart,
+  DatasetStatisticsChart,
+  DatasetQualityRadar,
+  EvidenceCoverageChart,
+  BusinessReadinessGauge,
+  TimelineChart,
+} from '../components/analytics'
+import {
+  ROUTES,
+  aiCollaborationCenterPath,
+  editMissionPath,
+  missionReportPath,
+  scenarioSimulatorPath,
+  datasetDetailsPath,
+} from '../constants/routes'
 import { missionService } from '../services/mission'
 import { datasetService } from '../services/dataset'
 import { useMissionDatasets } from '../hooks/useMissionDatasets'
+import { useAnalysisPolling } from '../hooks/useAnalysisPolling'
 import { getErrorMessage } from '../utils/http'
 import { formatDate } from '../utils/date'
 import { missionPriorityBadgeVariant, missionPriorityLabel, missionStatusBadgeVariant, missionStatusLabel } from '../utils/mission'
@@ -145,6 +165,7 @@ function MissionDetailsView({
   onDelete,
 }: MissionDetailsViewProps) {
   const datasets = useMissionDatasets(mission.id)
+  const analysisPolling = useAnalysisPolling(mission.id)
   const [datasetBanner, setDatasetBanner] = useState<string | null>(null)
   const [datasetError, setDatasetError] = useState<string | null>(null)
   const [deletingDatasetId, setDeletingDatasetId] = useState<string | null>(null)
@@ -181,6 +202,8 @@ function MissionDetailsView({
   }
 
   const datasetCount = datasets.status === 'success' ? datasets.data.length : null
+  const datasetsAnalytics = datasets.status === 'success' ? datasets.data : []
+  const analysisAnalytics = analysisPolling.status === 'found' ? analysisPolling.analysis : null
 
   const overviewCards = [
     {
@@ -227,6 +250,14 @@ function MissionDetailsView({
             <Link to={missionReportPath(mission.id)} className={buttonClasses('outline', 'sm')}>
               <BarChart3 className="h-4 w-4" aria-hidden="true" />
               Executive Dashboard
+            </Link>
+            <Link to={aiCollaborationCenterPath(mission.id)} className={buttonClasses('outline', 'sm')}>
+              <Network className="h-4 w-4" aria-hidden="true" />
+              AI Collaboration Center
+            </Link>
+            <Link to={scenarioSimulatorPath(mission.id)} className={buttonClasses('outline', 'sm')}>
+              <FlaskConical className="h-4 w-4" aria-hidden="true" />
+              Scenario Simulator
             </Link>
             <Link to={editMissionPath(mission.id)} className={buttonClasses('outline', 'sm')}>
               <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -392,6 +423,23 @@ function MissionDetailsView({
       </Card>
 
       <MissionAnalysisSection missionId={mission.id} />
+
+      <div className="mt-4">
+        <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mission Analytics</h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <MissionHealthScore analysis={analysisAnalytics} datasets={datasetsAnalytics} />
+          <MissionProgressChart datasets={datasetsAnalytics} analysis={analysisAnalytics} />
+          <BusinessReadinessGauge analysis={analysisAnalytics} datasets={datasetsAnalytics} />
+          <DatasetStatisticsChart datasets={datasetsAnalytics} />
+          <DatasetQualityRadar datasets={datasetsAnalytics} />
+          <EvidenceCoverageChart analysis={analysisAnalytics} />
+        </div>
+        <div className="mt-4">
+          <TimelineChart mission={mission} datasets={datasetsAnalytics} analysis={analysisAnalytics} />
+        </div>
+      </div>
+
+      <ExplainabilityPanel className="mt-4" analysis={analysisAnalytics} datasets={datasetsAnalytics} />
     </div>
   )
 }

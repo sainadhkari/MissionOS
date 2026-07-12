@@ -1,7 +1,7 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Boxes, Database, FileText, History, LayoutDashboard, PlayCircle, PlusCircle, Settings, X } from 'lucide-react'
-import { ROUTES, missionDetailsPath, missionReportPath } from '../../constants/routes'
+import { Boxes, Database, FileText, FlaskConical, History, LayoutDashboard, Network, PlayCircle, PlusCircle, Settings, X } from 'lucide-react'
+import { ROUTES, aiCollaborationCenterPath, missionDetailsPath, missionReportPath, scenarioSimulatorPath } from '../../constants/routes'
 import { useToast } from '../../contexts/ToastContext'
 import { APP_NAME } from '../../constants/app'
 
@@ -72,6 +72,18 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
       icon: FileText,
       to: currentMissionId ? missionReportPath(currentMissionId) : null,
       explanation: 'Open a mission first, then run analysis to unlock its executive report.',
+    },
+    {
+      label: 'AI Collaboration Center',
+      icon: Network,
+      to: currentMissionId ? aiCollaborationCenterPath(currentMissionId) : null,
+      explanation: 'Open a mission first to watch its AI agents collaborate.',
+    },
+    {
+      label: 'Scenario Simulator',
+      icon: FlaskConical,
+      to: currentMissionId ? scenarioSimulatorPath(currentMissionId) : null,
+      explanation: 'Open a mission first, then run analysis to explore what-if scenarios.',
     },
   ]
 

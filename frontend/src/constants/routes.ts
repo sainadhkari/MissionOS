@@ -8,6 +8,8 @@ export const ROUTES = {
   missionDetails: '/missions/:missionId',
   editMission: '/missions/:missionId/edit',
   missionReport: '/missions/:missionId/report',
+  aiCollaborationCenter: '/missions/:missionId/collaboration',
+  scenarioSimulator: '/missions/:missionId/scenarios',
   dataLibrary: '/data-library',
   datasetDetails: '/datasets/:datasetId',
   settings: '/settings',
@@ -23,6 +25,14 @@ export function editMissionPath(missionId: string): string {
 
 export function missionReportPath(missionId: string): string {
   return `/missions/${missionId}/report`
+}
+
+export function aiCollaborationCenterPath(missionId: string): string {
+  return `/missions/${missionId}/collaboration`
+}
+
+export function scenarioSimulatorPath(missionId: string): string {
+  return `/missions/${missionId}/scenarios`
 }
 
 export function datasetDetailsPath(datasetId: string): string {
