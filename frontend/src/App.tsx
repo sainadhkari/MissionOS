@@ -6,6 +6,7 @@ import DashboardLayout from './layouts/DashboardLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import Loading from './components/Loading'
 
+const Landing = lazy(() => import('./pages/Landing'))
 const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -24,6 +25,7 @@ function App() {
   return (
     <Suspense fallback={<Loading />}>
       <Routes>
+        <Route path={ROUTES.landing} element={<Landing />} />
         <Route element={<AuthLayout />}>
           <Route path={ROUTES.login} element={<Login />} />
           <Route path={ROUTES.register} element={<Register />} />
@@ -35,7 +37,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
+          <Route path="dashboard" element={<Dashboard />} />
           <Route path="missions/new" element={<CreateMission />} />
           <Route path="missions/history" element={<MissionHistory />} />
           <Route path="missions/:missionId/edit" element={<EditMission />} />

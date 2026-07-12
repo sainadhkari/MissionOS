@@ -1,7 +1,8 @@
 export const ROUTES = {
+  landing: '/',
   login: '/login',
   register: '/register',
-  dashboard: '/',
+  dashboard: '/dashboard',
   createMission: '/missions/new',
   missionHistory: '/missions/history',
   missionDetails: '/missions/:missionId',
