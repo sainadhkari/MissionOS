@@ -1,0 +1,64 @@
+databases:
+  - name: missionos-db
+    plan: free
+    databaseName: missionos
+    user: missionos
+
+services:
+  - type: web
+    name: missionos-backend
+    runtime: docker
+    plan: free
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: APP_NAME
+        value: MissionOS Backend
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      # No frontend deployed yet -- set as a placeholder at blueprint-creation
+      # time, then update to the real frontend origin once it exists. The
+      # production config validator rejects localhost origins outright, so
+      # this can't default to one.
+      - key: CORS_ORIGINS
+        sync: false
+      # Paste the database's Internal Database URL here with `+psycopg`
+      # inserted after `postgresql` (see deployment notes) -- SQLAlchemy
+      # needs the driver in the URL, and this backend only installs psycopg3,
+      # not psycopg2, so Render's raw connection string needs that one edit.
+      - key: DATABASE_URL
+        sync: false
+      # Render generates a strong random value here automatically -- already
+      # satisfies the production validator's 32-char / non-default checks.
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      # Prompted for during blueprint creation -- paste your real key directly
+      # into Render's own prompt, it never needs to pass through anywhere else.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_TIMEOUT
+        value: "30"
+      - key: OPENAI_EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: VECTOR_STORE_DIR
+        value: storage/vectorstore
+      - key: RAG_CHUNK_ROW_SIZE
+        value: "25"
+      - key: RAG_TOP_K
+        value: "6"
+      - key: UPLOAD_DIR
+        value: storage/uploads
+      - key: MAX_UPLOAD_SIZE_BYTES
+        value: "26214400"
