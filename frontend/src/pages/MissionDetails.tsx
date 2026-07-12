@@ -5,6 +5,7 @@ import {
   BarChart3,
   Briefcase,
   Calendar,
+  ClipboardList,
   Database,
   Flag,
   FlaskConical,
@@ -38,6 +39,7 @@ import {
   ROUTES,
   aiCollaborationCenterPath,
   editMissionPath,
+  executiveReportPath,
   missionReportPath,
   scenarioSimulatorPath,
   datasetDetailsPath,
@@ -258,6 +260,10 @@ function MissionDetailsView({
             <Link to={scenarioSimulatorPath(mission.id)} className={buttonClasses('outline', 'sm')}>
               <FlaskConical className="h-4 w-4" aria-hidden="true" />
               Scenario Simulator
+            </Link>
+            <Link to={executiveReportPath(mission.id)} className={buttonClasses('outline', 'sm')}>
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              Executive Report
             </Link>
             <Link to={editMissionPath(mission.id)} className={buttonClasses('outline', 'sm')}>
               <Pencil className="h-4 w-4" aria-hidden="true" />

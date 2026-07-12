@@ -2,10 +2,15 @@ import { Check, X } from 'lucide-react'
 import Reveal from './Reveal'
 
 const COMPARISONS: { traditional: string; missionos: string }[] = [
-  { traditional: 'Manual reports', missionos: 'AI-generated reports' },
-  { traditional: 'Static dashboards', missionos: 'Interactive dashboards' },
-  { traditional: 'Manual decision making', missionos: 'AI-assisted decision making' },
-  { traditional: 'Hours of work', missionos: 'Minutes' },
+  { traditional: 'Black-box AI output', missionos: 'Explainable AI, traced to evidence' },
+  { traditional: '"Trust the model"', missionos: 'Transparent, evidence-backed recommendations' },
+  { traditional: 'A single analyst\'s take', missionos: 'Multi-agent collaboration and consensus' },
+  { traditional: 'Static dashboards', missionos: 'Interactive business analytics' },
+  { traditional: 'Answers ungrounded in your data', missionos: 'RAG-grounded in your own datasets' },
+  { traditional: 'One what-if, run by hand', missionos: 'Scenario planning with 14 adjustable parameters' },
+  { traditional: 'Manual slide decks', missionos: 'One-click executive reporting' },
+  { traditional: 'Hackathon-grade prototypes', missionos: 'Production-ready architecture' },
+  { traditional: 'Hours of manual analysis', missionos: 'Minutes, end to end' },
 ]
 
 function WhyMissionOS() {

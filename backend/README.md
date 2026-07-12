@@ -1,8 +1,10 @@
 # MissionOS Backend
 
-FastAPI backend for MissionOS: infrastructure, database models, and JWT authentication
-are implemented — see [Not implemented yet](#not-implemented-yet) below for the explicit
-scope boundary.
+FastAPI backend for MissionOS: JWT authentication, mission/dataset management, a
+four-agent AI analysis pipeline (Business → Strategy → Risk → Executive), a
+RAG pipeline (chunking, embeddings, ChromaDB retrieval) grounding that analysis
+in the uploaded dataset, and HTML/PDF report export — see
+[Not implemented yet](#not-implemented-yet) below for the explicit scope boundary.
 
 ## Structure
 
@@ -10,23 +12,32 @@ scope boundary.
 backend/
   app/
     main.py          FastAPI() instance: CORS, logging, middleware, router registration
-    api/              Route modules (currently: health.py -> GET /health)
-    core/             Cross-cutting app bootstrap (currently: logging_config.py)
+    api/              Route modules: auth.py, missions.py, datasets.py,
+                       mission_analysis.py, health.py (+ deps.py for shared DI)
+    core/             Cross-cutting app bootstrap: security.py (JWT/password hashing),
+                       storage.py, vector_storage.py, error_handlers.py, logging_config.py,
+                       request_context.py
     config/           Settings (pydantic-settings), get_settings() DI dependency
     database/         SQLAlchemy Base, engine, SessionLocal, get_db() dependency
     models/           SQLAlchemy ORM models: User, Mission, Dataset, DatasetProfile,
-                       MissionAnalysis (+ enums.py)
+                       DatasetIndex, MissionAnalysis (+ enums.py)
     schemas/          Pydantic request/response models (health.py, auth.py, mission.py,
                        dataset.py, mission_analysis.py)
     repositories/     Data-access layer, one class per model
     services/         Business logic layer, incl. dataset validation/profiling and
                        AI analysis orchestration (mission_analysis_service.py)
-    middleware/        Custom ASGI middleware (currently: request logging)
+    ai/                Four-agent pipeline: agents/, prompts/ (markdown templates),
+                       providers/ (OpenAI client + a mock for tests), orchestrator.py,
+                       client.py, parser.py, prompt_loader.py
+    rag/               chunking.py, embedding_service.py, indexing_service.py,
+                       retrieval_service.py, vector_store.py (ChromaDB-backed)
+    reports/           HTML/PDF report rendering (xhtml2pdf)
+    middleware/        Custom ASGI middleware: logging_middleware.py, security_headers.py
     utils/              Shared helpers (empty)
   alembic/              Migration tooling, wired to app.database.base.Base
-    versions/           5f2e04b46f47_create_users_missions_datasets_tables.py
-                         2c4d6ce01b9b_add_dataset_profiles_table.py
-                         58ae864afad0_add_mission_analyses_table.py
+    versions/           5 migrations: initial users/missions/datasets tables,
+                         + dataset_profiles, + dataset_indexes, + mission_analyses,
+                         + retrieval_stats column on mission_analyses
   alembic.ini
   requirements.txt      Runtime dependencies
   requirements-dev.txt   + ruff (lint/format), for local dev and CI
@@ -733,20 +744,20 @@ OpenAI key/JWT secret/test password with none found.
 
 Deliberately absent so far:
 
-- Business logic beyond auth, mission CRUD, dataset upload/list/delete, dataset
-  validation/profiling, AI mission analysis, and HTML/PDF report export
 - DOCX/Markdown report export — the architecture (`app/reports/`) anticipates them but doesn't
-  implement them
+  implement them; only HTML/PDF are wired up
 - The `ExecutiveReport` model in `app/ai/models.py` — still just an unused, unconstructed data
-  contract from Ticket-012A; Ticket-015's report export uses its own `ReportData` model instead
-- Embeddings, RAG, LangGraph
-- A job queue — the profiling pipeline is a single in-process `BackgroundTask`; it doesn't survive
-  a server restart mid-task, isn't retried on failure, and doesn't scale past one process
+  contract from Ticket-012A; the report export flow uses its own `ReportData` model instead
+- LangGraph — the AI pipeline is a hand-rolled orchestrator (`app/ai/orchestrator.py`) sequencing
+  four agents, not a graph framework. Embeddings and RAG themselves ARE implemented (`app/rag/`,
+  ChromaDB-backed) and feed every agent's analysis
+- A job queue — both the dataset profiling pipeline and AI mission analysis run as a single
+  in-process `BackgroundTask` each; neither survives a server restart mid-task, is retried on
+  failure, or scales past one process
 - Refresh tokens / token revocation / logout invalidation (logout is client-side only —
   the frontend discards the token; the JWT itself remains valid until it expires)
 - Metrics/tracing (e.g. Prometheus/OpenTelemetry) — structured JSON logs with request-ID correlation
-  (Ticket-016) are the current observability story; no metrics exporter or distributed tracing exists
-- A job queue for AI analysis — still a single in-process `BackgroundTask` (unchanged by Ticket-016);
-  doesn't survive a server restart mid-analysis and isn't retried on failure
+  are the current observability story; no metrics exporter or distributed tracing exists
 - Automatic Postgres backups — see the [root README](../README.md#backup--restore) for the manual
   `pg_dump`/`pg_restore` procedure; nothing runs it on a schedule
+- Automated tests — no `tests/` directory exists yet for this backend

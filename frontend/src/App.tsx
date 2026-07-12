@@ -18,6 +18,7 @@ const DatasetDetails = lazy(() => import('./pages/DatasetDetails'))
 const MissionReport = lazy(() => import('./pages/MissionReport'))
 const AICollaborationCenter = lazy(() => import('./pages/AICollaborationCenter'))
 const ScenarioSimulator = lazy(() => import('./pages/ScenarioSimulator'))
+const ExecutiveReport = lazy(() => import('./pages/ExecutiveReport'))
 const DataLibrary = lazy(() => import('./pages/DataLibrary'))
 const Settings = lazy(() => import('./pages/Settings'))
 const NotFound = lazy(() => import('./pages/404'))
@@ -46,6 +47,7 @@ function App() {
           <Route path="missions/:missionId/report" element={<MissionReport />} />
           <Route path="missions/:missionId/collaboration" element={<AICollaborationCenter />} />
           <Route path="missions/:missionId/scenarios" element={<ScenarioSimulator />} />
+          <Route path="missions/:missionId/executive-report" element={<ExecutiveReport />} />
           <Route path="datasets/:datasetId" element={<DatasetDetails />} />
           <Route path="data-library" element={<DataLibrary />} />
           <Route path="settings" element={<Settings />} />

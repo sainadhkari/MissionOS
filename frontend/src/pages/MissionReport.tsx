@@ -4,7 +4,7 @@ import {
   Activity,
   AlertTriangle,
   BarChart3,
-  CheckCircle2,
+  ClipboardList,
   Database,
   FlaskConical,
   HeartPulse,
@@ -24,6 +24,7 @@ import Badge from '../components/Badge'
 import { buttonClasses } from '../components/Button'
 import ExportReportMenu from '../components/ExportReportMenu'
 import ExplainabilityPanel from '../components/Explainability'
+import ExecutiveRecommendationBanner from '../components/ExecutiveRecommendationBanner'
 import KpiCard from '../components/KpiCard'
 import RiskCategoryChart from '../components/RiskCategoryChart'
 import DatasetSummaryChart from '../components/DatasetSummaryChart'
@@ -46,7 +47,7 @@ import { useAnalysisPolling } from '../hooks/useAnalysisPolling'
 import { useMissionDatasets } from '../hooks/useMissionDatasets'
 import { missionService } from '../services/mission'
 import { getErrorMessage } from '../utils/http'
-import { ROUTES, aiCollaborationCenterPath, missionDetailsPath, scenarioSimulatorPath } from '../constants/routes'
+import { ROUTES, aiCollaborationCenterPath, executiveReportPath, missionDetailsPath, scenarioSimulatorPath } from '../constants/routes'
 import { severityBadgeVariant } from '../utils/analysis'
 import { buildConsensusMetrics } from '../utils/collaborationCenter'
 import { buildMissionHealthScore, deploymentReadinessPercent } from '../utils/analyticsCharts'
@@ -131,6 +132,10 @@ function MissionReport() {
             <Link to={scenarioSimulatorPath(mission.id)} className={buttonClasses('outline', 'sm')}>
               <FlaskConical className="h-4 w-4" aria-hidden="true" />
               Scenario Simulator
+            </Link>
+            <Link to={executiveReportPath(mission.id)} className={buttonClasses('outline', 'sm')}>
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              Executive Report
             </Link>
             {showExport && <ExportReportMenu missionId={mission.id} />}
           </>
@@ -242,24 +247,12 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-700 via-primary-600 to-violet-700 p-6 text-white shadow-glow sm:p-8">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-xs font-medium backdrop-blur-sm">
-              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-              Analysis Completed
-            </span>
-            <h2 className="mt-3 text-xl font-semibold leading-snug sm:text-2xl">{executive_analysis.final_recommendation}</h2>
-            <p className="mt-2 text-sm text-white/70">{mission.business_domain} · Priority: {capitalize(strategy_analysis.priority)}</p>
-          </div>
-          {aiConfidence !== null && (
-            <div className="shrink-0 rounded-xl bg-white/10 p-4 backdrop-blur-sm">
-              <ConfidenceGaugeLight value={aiConfidence} />
-            </div>
-          )}
-        </div>
-      </div>
+      <ExecutiveRecommendationBanner
+        finalRecommendation={executive_analysis.final_recommendation}
+        businessDomain={mission.business_domain}
+        priority={strategy_analysis.priority}
+        aiConfidence={aiConfidence}
+      />
 
       {/* Hero KPI Row */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -423,17 +416,6 @@ function AnalysisBody({ mission, analysis, datasets }: AnalysisBodyProps) {
       </div>
 
       <ExplainabilityPanel analysis={analysis} datasets={activeDatasets} />
-    </div>
-  )
-}
-
-/** A compact confidence readout for the hero banner, tuned for a colored
- * gradient background rather than a card surface. */
-function ConfidenceGaugeLight({ value }: { value: number }) {
-  return (
-    <div className="flex flex-col items-center gap-1 px-2">
-      <span className="text-4xl font-bold text-white">{Math.round(value * 100)}%</span>
-      <span className="text-xs font-medium text-white/70">AI Confidence</span>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import AIAgents from '../components/landing/AIAgents'
 import ProductShowcase from '../components/landing/ProductShowcase'
 import WhyMissionOS from '../components/landing/WhyMissionOS'
 import RAGSection from '../components/landing/RAGSection'
+import Documentation from '../components/landing/Documentation'
 import CTASection from '../components/landing/CTASection'
 import LandingFooter from '../components/landing/LandingFooter'
 
@@ -23,6 +24,7 @@ function Landing() {
         <ProductShowcase />
         <WhyMissionOS />
         <RAGSection />
+        <Documentation />
         <CTASection />
       </main>
       <LandingFooter />

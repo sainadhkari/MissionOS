@@ -1,12 +1,12 @@
-import { FileText, MessageSquareQuote, ScrollText, Sparkles } from 'lucide-react'
+import { Database, Layers, Quote, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Reveal from './Reveal'
 
 const RAG_ITEMS: { icon: LucideIcon; label: string }[] = [
-  { icon: FileText, label: 'Upload PDFs' },
-  { icon: ScrollText, label: 'Policies' },
-  { icon: FileText, label: 'Annual Reports' },
-  { icon: Sparkles, label: 'Knowledge Base' },
+  { icon: Database, label: 'Upload Datasets' },
+  { icon: Layers, label: 'Chunk & Embed' },
+  { icon: Sparkles, label: 'ChromaDB Retrieval' },
+  { icon: Quote, label: 'Cited Evidence' },
 ]
 
 function RAGSection() {
@@ -19,14 +19,14 @@ function RAGSection() {
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <Reveal className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-violet-200">
-            Coming Soon
+            Live in every mission
           </span>
           <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-            Ground every answer in your own documents
+            Every answer grounded in your own data
           </h2>
           <p className="mt-4 text-lg text-neutral-300">
-            A retrieval-augmented knowledge base so MissionOS can answer from your policies and
-            reports — with citations, not guesses.
+            MissionOS chunks and embeds every dataset you upload, indexes it in ChromaDB, and retrieves
+            the most relevant evidence for each agent to reason over — with citations, not guesses.
           </p>
         </Reveal>
 
@@ -45,11 +45,11 @@ function RAGSection() {
 
         <Reveal delayMs={280}>
           <div className="mx-auto mt-10 flex max-w-xl items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-            <MessageSquareQuote className="mt-0.5 h-5 w-5 shrink-0 text-violet-300" aria-hidden="true" />
+            <Quote className="mt-0.5 h-5 w-5 shrink-0 text-violet-300" aria-hidden="true" />
             <p className="text-sm text-neutral-300">
-              "According to your Q3 policy document (page 4), the approval threshold for regional
-              budget changes is 15% of quarterly revenue." — the kind of answer future MissionOS
-              will give, with a citation attached.
+              Every recommendation in the Explainability Center and Executive Report cites the exact
+              retrieved chunk it was grounded in — numbered, with a similarity score and source dataset
+              attached.
             </p>
           </div>
         </Reveal>

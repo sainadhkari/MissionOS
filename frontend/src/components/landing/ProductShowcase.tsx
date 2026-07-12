@@ -18,18 +18,10 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     alt: 'MissionOS dashboard with mission stats and backend status',
   },
   {
-    eyebrow: 'Mission Creation',
-    title: 'From idea to mission in three steps',
-    description:
-      'Define the business domain, priority, and problem statement through a guided wizard — review before you launch.',
-    image: '/screenshots/mission-creation.png',
-    alt: 'MissionOS mission creation wizard',
-  },
-  {
     eyebrow: 'Mission Details',
-    title: 'Datasets, analysis, and history together',
+    title: 'Datasets, analysis, and explainability together',
     description:
-      'Upload datasets, watch validation happen live, and trigger AI analysis — all from a single mission workspace.',
+      'Upload datasets, watch validation happen live, trigger AI analysis, and drill into fully expanded explainability cards — all from one mission workspace.',
     image: '/screenshots/mission-details.png',
     alt: 'MissionOS mission details page with datasets and AI analysis',
   },
@@ -37,17 +29,49 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     eyebrow: 'Executive Dashboard',
     title: 'KPIs and charts, not raw JSON',
     description:
-      'Business health, AI confidence, risk level, and dataset quality — plus bar, pie, and donut charts built from the same analysis.',
+      'Business health, AI confidence, risk level, and dataset quality — plus waterfall, gauge, and donut charts built from the same analysis, in real time.',
     image: '/screenshots/executive-dashboard.png',
     alt: 'MissionOS executive dashboard with KPI cards and charts',
+  },
+  {
+    eyebrow: 'AI Collaboration Center',
+    title: 'Watch the agents work, not just their output',
+    description:
+      'The live pipeline, agent-by-agent confidence, consensus, and the evidence network connecting datasets to the final decision — all in one place.',
+    image: '/screenshots/ai-collaboration-center.png',
+    alt: 'MissionOS AI Collaboration Center showing the live pipeline and agent consensus',
+  },
+  {
+    eyebrow: 'Scenario Simulator',
+    title: 'Explore what-if, without touching the AI',
+    description:
+      'Adjust 14 business assumptions and see deterministic projections against the mission\'s real analysis — clearly labeled as a simulation, never a new prediction.',
+    image: '/screenshots/scenario-simulator.png',
+    alt: 'MissionOS Scenario Simulator with adjustable parameters and projected outcomes',
+  },
+  {
+    eyebrow: 'Explainability',
+    title: 'Why the AI recommended what it recommended',
+    description:
+      'Every recommendation traces back to its agent, its reasoning, its confidence, and the exact retrieved evidence that grounded it.',
+    image: '/screenshots/explainability.png',
+    alt: 'MissionOS Explainability cards showing agent reasoning and cited evidence',
+  },
+  {
+    eyebrow: 'Data Library',
+    title: 'Every dataset, quality-scored and searchable',
+    description:
+      'Storage usage, completeness, duplicate rates, and schema composition across every dataset connected to your missions.',
+    image: '/screenshots/data-library.png',
+    alt: 'MissionOS Data Library with dataset quality analytics',
   },
   {
     eyebrow: 'Executive Report',
     title: 'A report your board will actually read',
     description:
-      'Cover page, KPI dashboard, top risks and recommendations, and a phased roadmap — exported to HTML or PDF in one click.',
+      'A print-ready report mirroring the dashboard section for section — cover page, KPIs, full analysis, evidence, and recommendations — generated from the exact same data.',
     image: '/screenshots/executive-report.png',
-    alt: 'MissionOS executive PDF report cover and KPI dashboard',
+    alt: 'MissionOS Executive Report cover page and KPI overview',
   },
 ]
 
@@ -57,7 +81,7 @@ function ProductShowcase() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal className="mx-auto max-w-2xl text-center">
           <span className="text-sm font-semibold uppercase tracking-widest text-primary-600">
-            Product Showcase
+            MissionOS In Action
           </span>
           <h2 className="mt-3 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
             See MissionOS in action

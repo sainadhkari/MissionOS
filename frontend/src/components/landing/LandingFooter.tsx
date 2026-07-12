@@ -1,12 +1,13 @@
 import { Boxes } from 'lucide-react'
 import { APP_NAME } from '../../constants/app'
 
-const FOOTER_LINKS: { label: string; comingSoon?: boolean }[] = [
-  { label: 'GitHub' },
-  { label: 'Privacy' },
-  { label: 'Contact' },
-  { label: 'Documentation', comingSoon: true },
+const FOOTER_LINKS: { label: string; href: string }[] = [
+  { label: 'GitHub', href: 'https://github.com' },
+  { label: 'Documentation', href: '#documentation' },
+  { label: 'Features', href: '#features' },
 ]
+
+const TEAM = ['Sainadh Kari', 'Saicharan Vanam']
 
 // lucide-react ships no brand/logo icons (Github, Twitter, etc. were removed
 // from the library) -- this is the standard minimal GitHub mark as inline SVG.
@@ -22,37 +23,33 @@ function LandingFooter() {
   return (
     <footer className="border-t border-neutral-200 bg-white py-12">
       <div className="mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 sm:flex-row sm:justify-between sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-primary-600 to-violet-600 text-white">
-            <Boxes className="h-3.5 w-3.5" aria-hidden="true" />
-          </span>
-          <span className="text-sm font-semibold text-neutral-900">{APP_NAME}</span>
-          <span className="ml-2 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-500">
-            Hackathon Project
-          </span>
+        <div className="flex flex-col items-center gap-1.5 sm:items-start">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-primary-600 to-violet-600 text-white">
+              <Boxes className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
+            <span className="text-sm font-semibold text-neutral-900">{APP_NAME}</span>
+          </div>
+          <p className="text-xs text-neutral-400">
+            Built by Team Gradient Descendant into Madness — {TEAM.join(' · ')}
+          </p>
         </div>
 
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           {FOOTER_LINKS.map((link) => (
-            <span
+            <a
               key={link.label}
-              className={`flex items-center gap-1.5 text-sm ${
-                link.comingSoon ? 'cursor-not-allowed text-neutral-400' : 'cursor-default text-neutral-500'
-              }`}
+              href={link.href}
+              className="flex items-center gap-1.5 text-sm text-neutral-500 transition-colors hover:text-neutral-900"
             >
               {link.label === 'GitHub' && <GithubIcon className="h-3.5 w-3.5" />}
               {link.label}
-              {link.comingSoon && (
-                <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-                  Soon
-                </span>
-              )}
-            </span>
+            </a>
           ))}
         </nav>
 
         <p className="text-xs text-neutral-400">
-          © {new Date().getFullYear()} {APP_NAME}. Built as a hackathon project.
+          © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
         </p>
       </div>
     </footer>

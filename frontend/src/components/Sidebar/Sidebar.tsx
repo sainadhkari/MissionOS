@@ -1,7 +1,14 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
-import { Boxes, Database, FileText, FlaskConical, History, LayoutDashboard, Network, PlayCircle, PlusCircle, Settings, X } from 'lucide-react'
-import { ROUTES, aiCollaborationCenterPath, missionDetailsPath, missionReportPath, scenarioSimulatorPath } from '../../constants/routes'
+import { Boxes, ClipboardList, Database, FileText, FlaskConical, History, LayoutDashboard, Network, PlayCircle, PlusCircle, Settings, X } from 'lucide-react'
+import {
+  ROUTES,
+  aiCollaborationCenterPath,
+  executiveReportPath,
+  missionDetailsPath,
+  missionReportPath,
+  scenarioSimulatorPath,
+} from '../../constants/routes'
 import { useToast } from '../../contexts/ToastContext'
 import { APP_NAME } from '../../constants/app'
 
@@ -33,10 +40,10 @@ const navGroups: NavGroup[] = [
 ]
 
 const linkClassName = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+  `flex items-center gap-2.5 rounded-md border-l-2 px-3 py-2 text-sm font-medium transition-colors duration-150 ${
     isActive
-      ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/50 dark:text-primary-300'
-      : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
+      ? 'border-primary-600 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-950/50 dark:text-primary-300'
+      : 'border-transparent text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
   }`
 
 const groupLabelClassName = 'px-3 text-xs font-semibold uppercase tracking-wide text-neutral-400 dark:text-neutral-500'
@@ -85,6 +92,12 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
       to: currentMissionId ? scenarioSimulatorPath(currentMissionId) : null,
       explanation: 'Open a mission first, then run analysis to explore what-if scenarios.',
     },
+    {
+      label: 'Executive Report',
+      icon: ClipboardList,
+      to: currentMissionId ? executiveReportPath(currentMissionId) : null,
+      explanation: 'Open a mission first, then run analysis to generate its executive report.',
+    },
   ]
 
   function handleAiCenterClick(item: (typeof aiCenterItems)[number]) {
@@ -104,11 +117,11 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
       <aside
         className={`${
           isOpen ? 'flex' : 'hidden'
-        } fixed inset-y-0 left-0 z-50 w-64 shrink-0 flex-col border-r border-neutral-200 bg-white px-3 py-6 dark:border-neutral-800 dark:bg-neutral-950 lg:static lg:z-auto lg:flex lg:w-60`}
+        } fixed inset-y-0 left-0 z-50 h-screen w-64 shrink-0 flex-col border-r border-neutral-200 bg-white px-3 py-5 transition-transform duration-200 dark:border-neutral-800 dark:bg-neutral-950 lg:relative lg:z-auto lg:flex lg:h-screen lg:w-60 print:hidden`}
       >
-        <div className="mb-6 flex items-center justify-between px-1 lg:hidden">
+        <div className="mb-6 flex items-center justify-between px-1">
           <span className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-600 text-white">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-primary-600 to-violet-600 text-white shadow-glow">
               <Boxes className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
             <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{APP_NAME}</span>
@@ -116,31 +129,31 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800 lg:hidden"
             aria-label="Close navigation"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
-        <nav className="flex flex-1 flex-col gap-6 overflow-y-auto">
+        <nav className="flex flex-1 flex-col gap-5 overflow-y-auto" aria-label="Primary">
           {navGroups.map((group, index) => (
-            <div key={group.label ?? index}>
+            <div key={group.label ?? index} className={index > 0 ? 'border-t border-neutral-100 pt-5 dark:border-neutral-800/60' : ''}>
               {group.label && <p className={groupLabelClassName}>{group.label}</p>}
-              <div className={`flex flex-col gap-1 ${group.label ? 'mt-1' : ''}`}>
+              <div className={`flex flex-col gap-0.5 ${group.label ? 'mt-2' : ''}`}>
                 {group.items.map(({ to, label, icon: Icon, end }) => (
                   <NavLink key={to} to={to} end={end} className={linkClassName} onClick={onClose}>
-                    <Icon className="h-4 w-4" aria-hidden="true" />
-                    {label}
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{label}</span>
                   </NavLink>
                 ))}
               </div>
             </div>
           ))}
 
-          <div>
+          <div className="border-t border-neutral-100 pt-5 dark:border-neutral-800/60">
             <p className={groupLabelClassName}>AI Center</p>
-            <div className="mt-1 flex flex-col gap-1">
+            <div className="mt-2 flex flex-col gap-0.5">
               {aiCenterItems.map((item) => {
                 const isEnabled = item.to !== null
                 return (
@@ -148,14 +161,14 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
                     key={item.label}
                     type="button"
                     onClick={() => handleAiCenterClick(item)}
-                    className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2.5 rounded-md border-l-2 border-transparent px-3 py-2 text-left text-sm font-medium transition-colors duration-150 ${
                       isEnabled
                         ? 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
                         : 'text-neutral-400 hover:bg-neutral-50 dark:text-neutral-600 dark:hover:bg-neutral-900'
                     }`}
                   >
-                    <item.icon className="h-4 w-4" aria-hidden="true" />
-                    {item.label}
+                    <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{item.label}</span>
                   </button>
                 )
               })}

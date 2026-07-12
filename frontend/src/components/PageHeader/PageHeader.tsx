@@ -13,7 +13,7 @@ function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{subtitle}</p>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap shrink-0 items-center gap-2">{actions}</div>}
     </div>
   )
 }

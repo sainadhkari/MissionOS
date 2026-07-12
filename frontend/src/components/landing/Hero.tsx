@@ -33,8 +33,9 @@ function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-neutral-600">
-            Transform business datasets into executive decisions using AI agents that analyze,
-            strategize, assess risk, and generate executive-ready reports.
+            A multi-agent AI platform that turns raw business data into executive-ready decisions —
+            grounded in retrieved evidence, fully explainable, stress-tested through scenario simulation,
+            and delivered as a boardroom-ready report.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -75,42 +76,68 @@ function Hero() {
           <dl className="mt-12 grid max-w-md grid-cols-3 gap-6 border-t border-neutral-200 pt-8">
             <div>
               <dt className="text-2xl font-bold text-neutral-900">4</dt>
-              <dd className="text-sm text-neutral-500">AI Agents</dd>
+              <dd className="text-sm text-neutral-500">Specialized AI Agents</dd>
             </div>
             <div>
-              <dt className="text-2xl font-bold text-neutral-900">Minutes</dt>
-              <dd className="text-sm text-neutral-500">Not hours</dd>
+              <dt className="text-2xl font-bold text-neutral-900">25+</dt>
+              <dd className="text-sm text-neutral-500">Executive Analytics</dd>
             </div>
             <div>
               <dt className="text-2xl font-bold text-neutral-900">100%</dt>
-              <dd className="text-sm text-neutral-500">AI-generated reports</dd>
+              <dd className="text-sm text-neutral-500">Evidence-Traced</dd>
             </div>
           </dl>
         </div>
 
-        <div className="animate-fade-in-up [animation-delay:200ms] [animation-fill-mode:backwards]">
-          <div className="relative">
-            <div
-              className="pointer-events-none absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-br from-primary-500/20 to-violet-500/20 blur-2xl"
-              aria-hidden="true"
-            />
-            <div className="animate-float overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-glow">
-              <div className="flex items-center gap-1.5 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-                <span className="ml-3 truncate rounded-md bg-white px-2.5 py-1 text-xs text-neutral-400 shadow-xs">
-                  app.missionos.ai/dashboard
-                </span>
-              </div>
-              <img
-                src="/screenshots/dashboard.png"
-                alt="MissionOS dashboard showing mission stats and backend status"
-                className="block w-full"
-                width={1280}
-                height={800}
-              />
+        <div className="relative animate-fade-in-up [animation-delay:200ms] [animation-fill-mode:backwards]">
+          <div
+            className="pointer-events-none absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-br from-primary-500/20 to-violet-500/20 blur-2xl"
+            aria-hidden="true"
+          />
+
+          {/* Main card -- Executive Dashboard */}
+          <div className="relative z-20 animate-float overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-glow">
+            <div className="flex items-center gap-1.5 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              <span className="ml-3 truncate rounded-md bg-white px-2.5 py-1 text-xs text-neutral-400 shadow-xs">
+                app.missionos.ai/executive-dashboard
+              </span>
             </div>
+            <img
+              src="/screenshots/executive-dashboard.png"
+              alt="MissionOS Executive Dashboard with KPI scorecards, confidence gauges, and business intelligence charts"
+              className="block w-full"
+              width={1280}
+              height={800}
+            />
+          </div>
+
+          {/* Accent card -- AI Collaboration Center, peeking from behind top-right */}
+          <div
+            className="absolute -top-10 -right-10 z-10 hidden w-64 animate-float overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-glow [animation-delay:1.2s] sm:block"
+            aria-hidden="true"
+          >
+            <div className="flex items-center gap-1 border-b border-neutral-200 bg-neutral-50 px-3 py-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
+              <span className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
+              <span className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
+            </div>
+            <img src="/screenshots/ai-collaboration-center.png" alt="" className="block w-full" width={640} height={400} />
+          </div>
+
+          {/* Accent card -- Explainability, peeking from behind bottom-left */}
+          <div
+            className="absolute -bottom-10 -left-10 z-10 hidden w-56 animate-float overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-glow [animation-delay:2.4s] md:block"
+            aria-hidden="true"
+          >
+            <div className="flex items-center gap-1 border-b border-neutral-200 bg-neutral-50 px-3 py-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
+              <span className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
+              <span className="h-1.5 w-1.5 rounded-full bg-neutral-300" />
+            </div>
+            <img src="/screenshots/explainability.png" alt="" className="block w-full" width={560} height={350} />
           </div>
         </div>
       </div>

@@ -6,7 +6,12 @@ interface Agent {
   icon: LucideIcon
   name: string
   role: string
-  contributes: string[]
+  responsibilities: string
+  inputs: string
+  outputs: string
+  evidence: string
+  confidence: string
+  businessValue: string
   gradient: string
 }
 
@@ -15,28 +20,48 @@ const AGENTS: Agent[] = [
     icon: Briefcase,
     name: 'Business Agent',
     role: 'Understands the problem',
-    contributes: ['Core business problem', 'Key opportunities', 'Important metrics', 'Recommended next steps'],
+    responsibilities: 'Frames the core business problem and surfaces the opportunities worth acting on.',
+    inputs: 'Mission brief + retrieved dataset evidence',
+    outputs: 'Business problem, key opportunities, important metrics, next steps',
+    evidence: 'Cites retrieved chunks that ground its assessment',
+    confidence: 'Scored independently, shown on every card',
+    businessValue: 'Turns raw data into a clear statement of what\'s actually at stake',
     gradient: 'from-sky-500 to-primary-600',
   },
   {
     icon: Target,
     name: 'Strategy Agent',
     role: 'Plans the response',
-    contributes: ['Strategic objectives', 'Recommended initiatives', 'Phased implementation roadmap', 'KPIs to track'],
+    responsibilities: 'Builds on the Business Agent\'s findings to define objectives and a phased plan.',
+    inputs: 'Business Agent output + retrieved evidence',
+    outputs: 'Strategic objectives, initiatives, roadmap, KPIs, business impact',
+    evidence: 'Cites the chunks supporting each initiative',
+    confidence: 'Scored independently, shown on every card',
+    businessValue: 'Converts a business problem into a concrete, sequenced plan',
     gradient: 'from-primary-600 to-violet-600',
   },
   {
     icon: ShieldAlert,
     name: 'Risk Agent',
     role: 'Stress-tests the plan',
-    contributes: ['Critical risks by severity', 'Assumptions made explicit', 'Recommended mitigations', 'Overall risk level'],
+    responsibilities: 'Reviews the strategy for what could go wrong and how severe it would be.',
+    inputs: 'Business + Strategy Agent output + retrieved evidence',
+    outputs: 'Critical risks, severity, probability, mitigations, overall risk level',
+    evidence: 'Cites the chunks each identified risk is grounded in',
+    confidence: 'Scored independently, shown on every card',
+    businessValue: 'Surfaces blockers before they become surprises in execution',
     gradient: 'from-violet-600 to-fuchsia-600',
   },
   {
     icon: Crown,
     name: 'Executive Agent',
     role: 'Synthesizes the decision',
-    contributes: ['Executive summary', 'Key findings', 'Trade-offs to weigh', 'Final recommendation'],
+    responsibilities: 'Weighs the first three agents\' output into a single recommendation.',
+    inputs: 'Business + Strategy + Risk Agent output + retrieved evidence',
+    outputs: 'Executive summary, key findings, trade-offs, final recommendation',
+    evidence: 'Cites the chunks behind the final recommendation',
+    confidence: 'Scored independently, shown on every card',
+    businessValue: 'Gives leadership one clear answer instead of three separate reports',
     gradient: 'from-fuchsia-600 to-rose-500',
   },
 ]
@@ -51,15 +76,15 @@ function AIAgents() {
             Four agents. One mission pipeline.
           </h2>
           <p className="mt-4 text-lg text-neutral-600">
-            Each agent has one job, builds on the last agent's output, and never re-does the previous
-            stage's reasoning.
+            Each agent has one job, builds on the last agent's output, and grounds everything it says in
+            retrieved evidence.
           </p>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-16 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-4">
           {AGENTS.map((agent, index) => (
             <Reveal key={agent.name} delayMs={index * 80}>
-              <div className="group relative h-full overflow-hidden rounded-2xl border border-neutral-200 bg-white p-6 shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-glow">
+              <div className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white p-6 shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-glow">
                 <div
                   className={`absolute -top-10 -right-10 h-28 w-28 rounded-full bg-gradient-to-br ${agent.gradient} opacity-10 transition-transform duration-500 group-hover:scale-150`}
                   aria-hidden="true"
@@ -71,14 +96,33 @@ function AIAgents() {
                 </span>
                 <h3 className="relative mt-5 text-base font-semibold text-neutral-900">{agent.name}</h3>
                 <p className="relative mt-0.5 text-xs font-medium text-primary-600">{agent.role}</p>
-                <ul className="relative mt-4 flex flex-col gap-2">
-                  {agent.contributes.map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-neutral-600">
-                      <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-neutral-400" aria-hidden="true" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+
+                <dl className="relative mt-4 flex flex-1 flex-col gap-3 text-xs">
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wide text-neutral-400">Responsibilities</dt>
+                    <dd className="mt-0.5 text-neutral-600">{agent.responsibilities}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wide text-neutral-400">Inputs</dt>
+                    <dd className="mt-0.5 text-neutral-600">{agent.inputs}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wide text-neutral-400">Outputs</dt>
+                    <dd className="mt-0.5 text-neutral-600">{agent.outputs}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wide text-neutral-400">Evidence Used</dt>
+                    <dd className="mt-0.5 text-neutral-600">{agent.evidence}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wide text-neutral-400">Confidence</dt>
+                    <dd className="mt-0.5 text-neutral-600">{agent.confidence}</dd>
+                  </div>
+                  <div className="mt-auto rounded-lg bg-neutral-50 p-2.5">
+                    <dt className="font-semibold uppercase tracking-wide text-neutral-400">Business Value</dt>
+                    <dd className="mt-0.5 font-medium text-neutral-800">{agent.businessValue}</dd>
+                  </div>
+                </dl>
               </div>
             </Reveal>
           ))}

@@ -105,7 +105,7 @@ function Navbar({ onMenuClick }: NavbarProps) {
   const displayEmail = currentUser.status === 'success' ? currentUser.data.email : ''
 
   return (
-    <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 shadow-xs backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/80">
+    <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 shadow-xs backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/80 print:hidden">
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-2">
           <button
@@ -182,6 +182,8 @@ function Navbar({ onMenuClick }: NavbarProps) {
               onClick={handleOpenNotifications}
               className="relative flex h-9 w-9 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
               aria-label="Notifications"
+              aria-haspopup="true"
+              aria-expanded={isNotificationsOpen}
             >
               <Bell className="h-4 w-4" aria-hidden="true" />
               {unreadCount > 0 && (
@@ -226,6 +228,8 @@ function Navbar({ onMenuClick }: NavbarProps) {
               onClick={() => setProfileOpen((open) => !open)}
               className="flex items-center gap-1.5 rounded-md py-1 pl-1 pr-2 hover:bg-neutral-100 dark:hover:bg-neutral-800"
               aria-label="Account menu"
+              aria-haspopup="true"
+              aria-expanded={isProfileOpen}
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
                 {currentUser.status === 'success' ? getInitials(currentUser.data.full_name) : <User className="h-4 w-4" />}

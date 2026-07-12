@@ -1,10 +1,20 @@
 import {
+  Boxes,
   Briefcase,
   CheckCircle2,
+  ClipboardList,
   Crown,
-  FileDown,
+  Database,
+  FileSearch,
+  GitBranch,
+  Handshake,
+  Layers,
   LayoutDashboard,
+  Lightbulb,
+  Network,
+  Scissors,
   ShieldAlert,
+  Sparkles,
   Target,
   UploadCloud,
 } from 'lucide-react'
@@ -17,15 +27,29 @@ interface Step {
   description: string
 }
 
+// The real, current end-to-end pipeline -- every stage here corresponds to
+// a step MissionOS actually executes (dataset validation, RAG indexing,
+// the four-agent sequence in its real order, then the executive-facing
+// surfaces), not an illustrative simplification.
 const STEPS: Step[] = [
-  { icon: UploadCloud, title: 'Upload Dataset', description: 'Drop in a CSV, XLSX, or JSON file for any business mission.' },
-  { icon: CheckCircle2, title: 'Validate Dataset', description: 'MissionOS profiles rows, columns, missing values, and duplicates automatically.' },
+  { icon: Boxes, title: 'Create Mission', description: 'Define the business domain, priority, and problem statement for a new mission.' },
+  { icon: UploadCloud, title: 'Upload Dataset', description: 'Drop in a CSV, XLSX, or JSON file for the mission.' },
+  { icon: CheckCircle2, title: 'Automatic Validation', description: 'MissionOS checks encoding, structure, and file integrity as soon as it lands.' },
+  { icon: FileSearch, title: 'Profiling', description: 'Row and column counts, missing values, duplicates, and column types are profiled automatically.' },
+  { icon: Scissors, title: 'Chunking', description: 'The dataset is split into retrieval-sized text chunks for the knowledge base.' },
+  { icon: Sparkles, title: 'Embedding Generation', description: 'Each chunk is embedded with OpenAI embeddings for semantic search.' },
+  { icon: Database, title: 'Vector Database', description: 'Embeddings are persisted in ChromaDB, scoped to the mission.' },
+  { icon: Layers, title: 'RAG Retrieval', description: 'The most relevant chunks are retrieved by similarity for the agents to reason over.' },
   { icon: Briefcase, title: 'Business Agent', description: 'Identifies the core business problem, opportunities, and key metrics.' },
   { icon: Target, title: 'Strategy Agent', description: 'Builds strategic objectives, initiatives, and a phased implementation roadmap.' },
   { icon: ShieldAlert, title: 'Risk Agent', description: 'Surfaces critical risks, severity, probability, and concrete mitigations.' },
   { icon: Crown, title: 'Executive Agent', description: 'Synthesizes every stage into one executive summary and final recommendation.' },
-  { icon: LayoutDashboard, title: 'Executive Dashboard', description: 'KPIs, charts, and top risks/recommendations rendered instantly on screen.' },
-  { icon: FileDown, title: 'Export PDF', description: 'A boardroom-ready HTML or PDF report, generated from the exact same data.' },
+  { icon: Network, title: 'Agent Collaboration', description: 'Each agent\'s confidence, evidence, and reasoning are laid out side by side.' },
+  { icon: Handshake, title: 'Consensus Building', description: 'Agreement across agents and overall decision strength are derived from their confidence scores.' },
+  { icon: LayoutDashboard, title: 'Executive Dashboard', description: 'KPIs, gauges, and interactive charts render the moment analysis completes.' },
+  { icon: Lightbulb, title: 'Explainability', description: 'Every recommendation traces back to the agent, evidence, and reasoning behind it.' },
+  { icon: GitBranch, title: 'Scenario Simulation', description: 'Run deterministic what-if projections against the mission\'s real analysis.' },
+  { icon: ClipboardList, title: 'Executive Report', description: 'A print-ready report mirroring the dashboard, generated from the exact same data.' },
 ]
 
 function HowItWorks() {
@@ -40,7 +64,8 @@ function HowItWorks() {
             From raw data to executive decision
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-600">
-            One pipeline, four specialized AI agents, zero manual analysis.
+            One pipeline, four specialized AI agents, and a RAG knowledge base grounding every step —
+            zero manual analysis.
           </p>
         </Reveal>
 
@@ -51,7 +76,7 @@ function HowItWorks() {
           />
           <ol className="flex flex-col gap-10">
             {STEPS.map((step, index) => (
-              <Reveal key={step.title} delayMs={index * 70}>
+              <Reveal key={step.title} delayMs={index * 50}>
                 <li className="relative flex items-start gap-5 sm:justify-center">
                   <span className="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-600 to-violet-600 text-white shadow-glow sm:absolute sm:left-1/2 sm:-translate-x-1/2">
                     <step.icon className="h-5 w-5" aria-hidden="true" />

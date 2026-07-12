@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { AlertTriangle, FlaskConical, Loader2, Network } from 'lucide-react'
+import { AlertTriangle, ClipboardList, FlaskConical, Loader2, Network } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import Loading from '../components/Loading'
@@ -24,7 +24,7 @@ import { useAnalysisPolling } from '../hooks/useAnalysisPolling'
 import { useMissionDatasets } from '../hooks/useMissionDatasets'
 import { missionService } from '../services/mission'
 import { getErrorMessage } from '../utils/http'
-import { ROUTES, missionDetailsPath, scenarioSimulatorPath } from '../constants/routes'
+import { ROUTES, executiveReportPath, missionDetailsPath, scenarioSimulatorPath } from '../constants/routes'
 import { analysisStatusBadgeVariant, analysisStatusLabel } from '../utils/analysis'
 import {
   buildAgentBoardCards,
@@ -121,6 +121,10 @@ function AICollaborationCenter() {
             <Link to={scenarioSimulatorPath(mission.id)} className={buttonClasses('outline', 'sm')}>
               <FlaskConical className="h-4 w-4" aria-hidden="true" />
               Scenario Simulator
+            </Link>
+            <Link to={executiveReportPath(mission.id)} className={buttonClasses('outline', 'sm')}>
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              Executive Report
             </Link>
           </>
         }

@@ -1,13 +1,17 @@
-import { Boxes, Container, Database, Layers, Network, Sparkles, Zap } from 'lucide-react'
+import { Boxes, Container, Database, Layers, Sparkles, Zap } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import Reveal from './Reveal'
 
+// Every entry here is a real, currently-used dependency -- verified against
+// backend/requirements.txt and the frontend's own package.json rather than
+// listed by reputation. MissionOS's multi-agent pipeline is a hand-rolled
+// orchestrator calling the OpenAI API directly, not CrewAI or LangChain, so
+// neither belongs here even though they're common in this space.
 const TECHNOLOGIES: { name: string; icon: LucideIcon }[] = [
   { name: 'React', icon: Zap },
   { name: 'FastAPI', icon: Boxes },
   { name: 'OpenAI', icon: Sparkles },
-  { name: 'CrewAI', icon: Network },
-  { name: 'LangChain', icon: Layers },
+  { name: 'ChromaDB', icon: Layers },
   { name: 'PostgreSQL', icon: Database },
   { name: 'Docker', icon: Container },
 ]

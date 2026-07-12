@@ -14,13 +14,9 @@ class AnalysisOrchestrator:
     *how* analysis happens — only the order in which agents run and how
     results are threaded between them. Swapping an agent's implementation,
     or inserting a new stage, never requires touching `run()`'s control flow,
-    only the wiring at the call site that constructs the orchestrator — that
-    call site doesn't exist yet either; nothing in this ticket instantiates
-    `AnalysisOrchestrator` or wires it into an API route.
-
-    Agent logic is not implemented yet (Ticket-012A is infrastructure only) —
-    calling `run()` will raise whatever `NotImplementedError` the first
-    agent's `analyze()` raises.
+    only the wiring at the call site that constructs the orchestrator —
+    that's `_build_orchestrator()` in `app/services/mission_analysis_service.py`,
+    which runs this pipeline as a background task per mission analysis request.
     """
 
     def __init__(

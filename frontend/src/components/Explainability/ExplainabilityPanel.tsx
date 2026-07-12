@@ -11,6 +11,11 @@ interface ExplainabilityPanelProps {
   analysis: MissionAnalysis | null
   datasets: Dataset[]
   className?: string
+  /** Forwarded to every `ExplainabilityCard` — renders each one permanently
+   * expanded with no click-to-toggle interaction. Used by the Executive
+   * Report so printed/exported output shows full card detail instead of
+   * the accordion's default collapsed state. */
+  forceExpanded?: boolean
 }
 
 /** Renders the "why" behind every AI recommendation — which agent
@@ -19,7 +24,7 @@ interface ExplainabilityPanelProps {
  * app already fetches elsewhere (`MissionAnalysis` + `Dataset[]`); it never
  * issues its own requests, so it drops into any page that already has that
  * data in scope. */
-function ExplainabilityPanel({ analysis, datasets, className = '' }: ExplainabilityPanelProps) {
+function ExplainabilityPanel({ analysis, datasets, className = '', forceExpanded = false }: ExplainabilityPanelProps) {
   const isReady =
     analysis?.status === 'completed' &&
     analysis.business_analysis &&
@@ -67,14 +72,15 @@ function ExplainabilityPanel({ analysis, datasets, className = '' }: Explainabil
         </h2>
         <p className="mb-4 text-xs text-neutral-500 dark:text-neutral-400">
           {cards.length} AI-generated recommendation{cards.length === 1 ? '' : 's'}, each traced back to the agent
-          that produced it and the evidence that supports it. Expand a card for the full breakdown.
+          that produced it and the evidence that supports it.
+          {!forceExpanded && ' Expand a card for the full breakdown.'}
         </p>
         {cards.length === 0 ? (
           <EmptyState icon={Lightbulb} title="No recommendations to explain yet" />
         ) : (
           <div className="flex flex-col gap-3">
             {cards.map((card) => (
-              <ExplainabilityCard key={card.id} card={card} />
+              <ExplainabilityCard key={card.id} card={card} forceExpanded={forceExpanded} />
             ))}
           </div>
         )}

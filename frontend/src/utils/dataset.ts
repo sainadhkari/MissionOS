@@ -45,6 +45,10 @@ export function columnCategoryBadgeVariant(category: DatasetColumnCategory): Bad
 
 export function formatStatValue(value: number | null): string {
   if (value === null) return '—'
+  // Defensive: a numeric-summary field should always be a number by contract,
+  // but a malformed/legacy profile could still hand this a boolean or string --
+  // better to render it plainly than crash the whole page on `.toFixed`.
+  if (typeof value !== 'number') return String(value)
   return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2)
 }
 

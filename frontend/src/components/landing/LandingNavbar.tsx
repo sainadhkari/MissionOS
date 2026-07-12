@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { href: '#how-it-works', label: 'How it Works' },
   { href: '#ai-agents', label: 'AI Agents' },
   { href: '#executive-dashboard', label: 'Executive Dashboard' },
+  { href: '#documentation', label: 'Documentation' },
 ]
 
 function LandingNavbar() {
@@ -50,12 +51,6 @@ function LandingNavbar() {
               {link.label}
             </a>
           ))}
-          <span className="flex cursor-not-allowed items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium text-neutral-400">
-            Documentation
-            <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-              Soon
-            </span>
-          </span>
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
@@ -96,12 +91,6 @@ function LandingNavbar() {
                 {link.label}
               </a>
             ))}
-            <span className="flex items-center gap-1.5 rounded-md px-3 py-2.5 text-sm font-medium text-neutral-400">
-              Documentation
-              <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-                Soon
-              </span>
-            </span>
             <div className="mt-2 flex flex-col gap-2 border-t border-neutral-200 pt-3">
               <Link
                 to={ROUTES.login}

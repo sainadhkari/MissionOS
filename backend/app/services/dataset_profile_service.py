@@ -56,6 +56,13 @@ def _numeric_summary(series: pd.Series) -> dict[str, Any]:
     clean = series.dropna()
     if clean.empty:
         return {"count": 0, "min": None, "max": None, "mean": None, "median": None, "std": None}
+    # Bool columns pass `is_numeric_dtype` (pandas treats bool as numeric), landing
+    # them here, but .min()/.max() on a bool Series return actual True/False --
+    # _to_jsonable only coerces np.integer/np.floating, so those booleans would
+    # otherwise reach the API (and the frontend's `number`-typed formatters) as
+    # JSON `true`/`false` instead of a number.
+    if pd.api.types.is_bool_dtype(clean):
+        clean = clean.astype(int)
     return {
         "count": int(clean.count()),
         "min": _to_jsonable(clean.min()),
