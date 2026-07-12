@@ -430,22 +430,30 @@ function MissionDetailsView({
 
       <MissionAnalysisSection missionId={mission.id} />
 
-      <div className="mt-4">
-        <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mission Analytics</h2>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <MissionHealthScore analysis={analysisAnalytics} datasets={datasetsAnalytics} />
-          <MissionProgressChart datasets={datasetsAnalytics} analysis={analysisAnalytics} />
-          <BusinessReadinessGauge analysis={analysisAnalytics} datasets={datasetsAnalytics} />
-          <DatasetStatisticsChart datasets={datasetsAnalytics} />
-          <DatasetQualityRadar datasets={datasetsAnalytics} />
-          <EvidenceCoverageChart analysis={analysisAnalytics} />
-        </div>
-        <div className="mt-4">
-          <TimelineChart mission={mission} datasets={datasetsAnalytics} analysis={analysisAnalytics} />
-        </div>
-      </div>
+      {datasets.status === 'loading' ? (
+        <Card className="mt-4">
+          <Loading />
+        </Card>
+      ) : (
+        <>
+          <div className="mt-4">
+            <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">Mission Analytics</h2>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <MissionHealthScore analysis={analysisAnalytics} datasets={datasetsAnalytics} />
+              <MissionProgressChart datasets={datasetsAnalytics} analysis={analysisAnalytics} />
+              <BusinessReadinessGauge analysis={analysisAnalytics} datasets={datasetsAnalytics} />
+              <DatasetStatisticsChart datasets={datasetsAnalytics} />
+              <DatasetQualityRadar datasets={datasetsAnalytics} />
+              <EvidenceCoverageChart analysis={analysisAnalytics} />
+            </div>
+            <div className="mt-4">
+              <TimelineChart mission={mission} datasets={datasetsAnalytics} analysis={analysisAnalytics} />
+            </div>
+          </div>
 
-      <ExplainabilityPanel className="mt-4" analysis={analysisAnalytics} datasets={datasetsAnalytics} />
+          <ExplainabilityPanel className="mt-4" analysis={analysisAnalytics} datasets={datasetsAnalytics} />
+        </>
+      )}
     </div>
   )
 }

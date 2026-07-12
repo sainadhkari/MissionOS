@@ -105,7 +105,7 @@ function ScenarioSimulator() {
     return [{ label: 'Scenario', projection, recommendationChanges }]
   }, [selectedScenarios, baseline, projection, recommendationChanges, analysis])
 
-  if (missionState.status === 'loading' || analysisPolling.status === 'loading') {
+  if (missionState.status === 'loading' || analysisPolling.status === 'loading' || datasets.status === 'loading') {
     return (
       <div>
         <PageHeader title="Scenario Simulator" />

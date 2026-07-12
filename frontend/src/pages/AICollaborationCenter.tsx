@@ -56,7 +56,7 @@ function AICollaborationCenter() {
       .catch((err) => setMissionState({ status: 'error', message: getErrorMessage(err, 'Mission not found.') }))
   }, [missionId])
 
-  if (missionState.status === 'loading' || analysisPolling.status === 'loading') {
+  if (missionState.status === 'loading' || analysisPolling.status === 'loading' || datasets.status === 'loading') {
     return (
       <div>
         <PageHeader title="AI Collaboration Center" />
@@ -130,10 +130,7 @@ function AICollaborationCenter() {
         }
       />
 
-      <div
-        className="sticky z-20 -mx-4 mb-4 flex items-center justify-between gap-3 border-y border-neutral-200 bg-white/85 px-4 py-2.5 backdrop-blur-md dark:border-neutral-800 dark:bg-neutral-950/85 sm:-mx-6 sm:px-6"
-        style={{ top: 65 }}
-      >
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
         <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
           <Network className="h-4 w-4 shrink-0 text-primary-500" aria-hidden="true" />
           <span className="truncate">{mission.title}</span>

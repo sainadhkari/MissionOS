@@ -100,7 +100,7 @@ function ExecutiveReport() {
       .catch((err) => setMissionState({ status: 'error', message: getErrorMessage(err, 'Mission not found.') }))
   }, [missionId])
 
-  if (missionState.status === 'loading' || analysisPolling.status === 'loading') {
+  if (missionState.status === 'loading' || analysisPolling.status === 'loading' || datasets.status === 'loading') {
     return (
       <div>
         <PageHeader title="Executive Report" />

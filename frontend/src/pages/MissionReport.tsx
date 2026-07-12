@@ -169,7 +169,13 @@ function MissionReport() {
         </Card>
       )}
 
-      {analysisPolling.status === 'found' && (
+      {analysisPolling.status === 'found' && datasets.status === 'loading' && (
+        <Card>
+          <Loading />
+        </Card>
+      )}
+
+      {analysisPolling.status === 'found' && datasets.status !== 'loading' && (
         <AnalysisBody analysis={analysisPolling.analysis} mission={mission} datasets={datasets} />
       )}
     </div>
