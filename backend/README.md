@@ -642,6 +642,93 @@ wrapping a whole `AnalysisResult`) than what the ticket's exact "Report Content"
 needs (every individual field, broken out, per section). `app/ai/models.py` was left untouched
 entirely, consistent with "Do NOT modify backend AI logic."
 
+## Production Hardening & Deployment (Ticket-016)
+
+No new business features, no AI logic changes, no architecture redesign — this ticket makes the
+existing behavior safe and observable to run outside a developer's machine.
+
+**Config validation** (`app/config/settings.py`): a `@model_validator(mode="after")` runs whenever
+`Settings` is constructed. If `environment == "production"`, it collects every problem it finds
+(dev-default `JWT_SECRET_KEY`, a secret under 32 characters, an empty `OPENAI_API_KEY`, `DEBUG=true`,
+or any `CORS_ORIGINS` entry starting with `http://localhost`/`http://127.0.0.1`) and raises one
+`ValueError` listing all of them — so a misconfigured production deployment fails at process startup,
+with every problem visible at once, instead of booting and failing confusingly on whichever request
+happens to need the missing thing first. `development`/`staging` are unaffected. `.env.production.example`
+documents the fields this validator checks.
+
+**Structured logging** (`app/core/logging_config.py`, `app/core/request_context.py`): in
+`environment == "production"`, log records are emitted as one JSON object per line (`timestamp`,
+`level`, `logger`, `message`, `request_id`, `exception` if present) instead of the human-readable
+format used in dev — so logs are directly ingestible by a log aggregator without a separate parsing
+step. A `ContextVar`-backed request ID (`request_context.py`) is generated (or reused, if the client
+sent `X-Request-ID`) per request by `RequestLoggingMiddleware`, echoed back as a response header, and
+attached to every log line emitted during that request via a `logging.Filter` — so every log line
+from a single request, across every module, can be correlated by `request_id`, and the response
+header lets a client correlate their own report of an issue back to server-side logs.
+
+**Global error handling** (`app/core/error_handlers.py`): a catch-all `@app.exception_handler(Exception)`
+logs the full exception server-side (`logger.exception`, so the traceback and `request_id` both land
+in the logs) and returns a generic `{"detail": "Internal server error"}`, 500, to the client — never
+the traceback itself. **This required one non-obvious fix**: `FastAPI(debug=...)` must never be tied
+to `settings.debug`. Verified live that `debug=True` (the dev default) makes Starlette's own
+`ServerErrorMiddleware` render its full traceback in the HTTP response *before* the custom handler
+ever runs, regardless of the handler being registered — reproduced with a deliberately raised
+exception containing a fake secret, which came back verbatim in the response body. `main.py` now
+hardcodes `debug=False` unconditionally, with a comment explaining why, so this can't regress by
+someone reasonably assuming `settings.debug` controls it.
+
+**Security headers** (`app/middleware/security_headers.py`): `SecurityHeadersMiddleware` sets
+`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy:
+strict-origin-when-cross-origin`, and `Strict-Transport-Security` on every response, via
+`setdefault` so a route that deliberately sets its own value isn't overridden.
+
+**CORS**: unchanged in mechanism (`CORSMiddleware`, `allow_origins=settings.cors_origins_list`) —
+what's new is the production config validator refusing to boot with a `localhost`/`127.0.0.1` origin
+in `CORS_ORIGINS` when `environment=production`, since that almost always means a real domain was
+never configured.
+
+**Filename validation** (`app/services/dataset_service.py`): `_validate_filename` rejects an empty
+filename, one over 255 characters, or one containing control characters (`ord < 32`, e.g. embedded
+newlines) before the file is ever written to disk — 400 via the new `InvalidFilenameError`. This is
+in addition to, not a replacement for, the existing extension/size checks from Ticket-010; the
+uploaded file is still stored under a `uuid4()`-derived name regardless (Ticket-010), so this closes
+a header-injection-shaped input-validation gap rather than a path-traversal one (that was already
+closed).
+
+**Health & readiness** (`app/api/health.py`): `GET /health` is a static liveness check (process is
+up, no dependencies checked). `GET /ready` additionally runs `SELECT 1` against the database and
+returns 503 if it fails — the two are deliberately different questions ("is the process alive" vs.
+"can this instance actually serve a real request right now"), matching what a container
+orchestrator's separate liveness/readiness probes expect.
+
+**AI failure logging**: the background analysis pipeline's `except AIException` branch
+(`mission_analysis_service.py`, Ticket-013) previously persisted the failure to the database but
+never logged it — a real gap this ticket found and closed by adding a `logger.warning` with the
+mission ID, exception type, and message, so an AI failure is visible in logs (and now carries a
+`request_id`, though the background task itself runs outside request scope) without needing to query
+the database to notice it happened.
+
+**Docker**: `backend/Dockerfile` (`python:3.14-slim`, non-root `appuser`, `HEALTHCHECK` against
+`GET /health`, entrypoint runs `alembic upgrade head` before `uvicorn` so a container never serves
+traffic against an unmigrated schema) and `frontend/Dockerfile` (multi-stage: `node:20-alpine` builds
+the Vite bundle with `VITE_API_URL` baked in at build time via `ARG`/`ENV` — Vite env vars are
+compiled into the static bundle, not read at container runtime, so changing the API URL means
+rebuilding, not just restarting — then `nginx:alpine` serves `/dist` with SPA fallback and
+fingerprinted-asset caching, see `frontend/nginx.conf`). `docker-compose.prod.yml` at the repo root is
+a standalone file (not an override of the dev `docker-compose.yml`) provisioning all three services
+(`postgres`, `backend`, `frontend`) with `restart: always`, no host port exposed for `postgres`, and a
+named volume for uploaded files. See the [root README](../README.md) for usage.
+
+**Verified live**: config validator rejects an invalid production config with all problems listed,
+and accepts a valid one; `/health`/`/ready` return correct status codes including a simulated DB
+outage; the stack-trace leak was reproduced and then confirmed fixed via `TestClient`, with the
+traceback still present in server-side logs; both Docker images build and run with passing
+healthchecks; the full `docker-compose.prod.yml` stack was brought up with `ENVIRONMENT=production`
+settings and exercised end-to-end (register, login, mission creation, dataset upload/validation, a
+real four-agent AI analysis run, PDF/HTML report export) with structured JSON logs, request IDs,
+security headers, and hidden `/docs` all confirmed active, and the response logs scanned for the
+OpenAI key/JWT secret/test password with none found.
+
 ## Not implemented yet
 
 Deliberately absent so far:
@@ -657,3 +744,9 @@ Deliberately absent so far:
   a server restart mid-task, isn't retried on failure, and doesn't scale past one process
 - Refresh tokens / token revocation / logout invalidation (logout is client-side only —
   the frontend discards the token; the JWT itself remains valid until it expires)
+- Metrics/tracing (e.g. Prometheus/OpenTelemetry) — structured JSON logs with request-ID correlation
+  (Ticket-016) are the current observability story; no metrics exporter or distributed tracing exists
+- A job queue for AI analysis — still a single in-process `BackgroundTask` (unchanged by Ticket-016);
+  doesn't survive a server restart mid-analysis and isn't retried on failure
+- Automatic Postgres backups — see the [root README](../README.md#backup--restore) for the manual
+  `pg_dump`/`pg_restore` procedure; nothing runs it on a schedule

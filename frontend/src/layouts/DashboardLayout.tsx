@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
+import OfflineBanner from '../components/OfflineBanner'
 
 function DashboardLayout() {
   const [isSidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <div className="min-h-screen">
+      <OfflineBanner />
       <Navbar onMenuClick={() => setSidebarOpen(true)} />
       <div className="flex">
         <Sidebar isOpen={isSidebarOpen} onClose={() => setSidebarOpen(false)} />

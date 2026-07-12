@@ -1,8 +1,9 @@
 import axios from 'axios'
 import { AUTH_TOKEN_KEY } from '../constants/auth'
+import { config } from '../config'
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: config.apiUrl,
   timeout: 5000,
 })
 

@@ -12,6 +12,9 @@ from app.repositories.dataset_repository import DatasetRepository
 from app.services import mission_service
 
 ALLOWED_EXTENSIONS = {"csv", "xlsx", "json"}
+# Matches the `original_filename` column's String(255) — reject before the
+# DB does, with a clear error instead of an opaque constraint failure.
+_MAX_FILENAME_LENGTH = 255
 
 
 class DatasetNotFoundError(Exception):
@@ -26,8 +29,28 @@ class FileTooLargeError(Exception):
     pass
 
 
+class InvalidFilenameError(Exception):
+    pass
+
+
 def _extract_extension(filename: str) -> str:
     return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+
+def _validate_filename(filename: str) -> None:
+    """`filename` is only ever stored as metadata (never used to build a
+    filesystem path — see app/core/storage.py), so this isn't a path-
+    traversal check. It rejects the two things that are still real problems
+    regardless: control/null characters (never legitimate in a filename, and
+    can cause confusing behavior wherever the name is later displayed or
+    logged) and anything too long for the `original_filename` DB column.
+    """
+    if not filename:
+        raise InvalidFilenameError("Filename is required.")
+    if len(filename) > _MAX_FILENAME_LENGTH:
+        raise InvalidFilenameError(f"Filename exceeds {_MAX_FILENAME_LENGTH} characters.")
+    if any(ord(char) < 32 for char in filename):
+        raise InvalidFilenameError("Filename contains invalid control characters.")
 
 
 def list_datasets(db: Session, *, user: User, mission_id: uuid.UUID) -> list[Dataset]:
@@ -39,6 +62,8 @@ def upload_dataset(
     db: Session, *, user: User, mission_id: uuid.UUID, upload: UploadFile
 ) -> Dataset:
     mission_service.get_mission(db, user=user, mission_id=mission_id)
+
+    _validate_filename(upload.filename or "")
 
     extension = _extract_extension(upload.filename or "")
     if extension not in ALLOWED_EXTENSIONS:

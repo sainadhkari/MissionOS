@@ -1,7 +1,11 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEV_JWT_SECRET = "dev-secret-change-me"
+_MIN_JWT_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -33,6 +37,38 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+    @model_validator(mode="after")
+    def _validate_production_config(self) -> Settings:
+        """Fails fast at startup (Settings() is constructed at import time,
+        below) rather than letting an insecure or half-configured deployment
+        boot and fail confusingly later, on the first request that needs the
+        thing that was never set."""
+        if self.environment != "production":
+            return self
+
+        problems = []
+        if self.jwt_secret_key == _DEV_JWT_SECRET:
+            problems.append("JWT_SECRET_KEY is still the development default")
+        if len(self.jwt_secret_key) < _MIN_JWT_SECRET_LENGTH:
+            problems.append(
+                f"JWT_SECRET_KEY must be at least {_MIN_JWT_SECRET_LENGTH} characters"
+            )
+        if not self.openai_api_key:
+            problems.append(
+                "OPENAI_API_KEY is not set — AI analysis will fail on every request"
+            )
+        if self.debug:
+            problems.append("DEBUG must be false in production")
+        local_prefixes = ("http://localhost", "http://127.0.0.1")
+        if any(origin.startswith(local_prefixes) for origin in self.cors_origins_list):
+            problems.append("CORS_ORIGINS still includes a localhost origin")
+
+        if problems:
+            raise ValueError(
+                "Invalid production configuration:\n" + "\n".join(f"  - {p}" for p in problems)
+            )
+        return self
 
 
 @lru_cache

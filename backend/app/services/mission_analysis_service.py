@@ -164,6 +164,17 @@ def run_analysis_pipeline(mission_id: uuid.UUID) -> None:
             )
             analysis.status = AnalysisStatus.COMPLETED
         except AIException as exc:
+            # Not `.exception()` — this is an expected, already-handled failure
+            # mode (a bad API key, a rate limit, a malformed model response),
+            # not a bug, so no traceback is needed — but it must still be
+            # visible in the server logs, not just the DB row, or an AI outage
+            # is invisible until someone happens to query mission_analyses.
+            logger.warning(
+                "AI analysis failed for mission %s: %s: %s",
+                mission_id,
+                type(exc).__name__,
+                exc,
+            )
             analysis.status = AnalysisStatus.FAILED
             analysis.error_message = str(exc)
         except Exception as exc:
