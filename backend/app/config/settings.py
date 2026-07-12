@@ -33,6 +33,17 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_timeout: float = 30.0
+    openai_embedding_model: str = "text-embedding-3-small"
+    # Relative to the backend/ directory, same convention as upload_dir —
+    # this is where the Chroma persistent client writes its on-disk index.
+    vector_store_dir: str = "storage/vectorstore"
+    # Rows per chunk when splitting a dataset for embedding — kept row-aligned
+    # (never splits a row across two chunks) rather than token-counted, since
+    # the source is always tabular.
+    rag_chunk_row_size: int = 25
+    # Chunks retrieved per mission analysis run, shared across all four agents
+    # (retrieval happens once up front, not once per agent).
+    rag_top_k: int = 6
 
     @property
     def cors_origins_list(self) -> list[str]:

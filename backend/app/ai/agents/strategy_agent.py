@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from app.ai import parser
 from app.ai.client import AIClient, AIMessage
-from app.ai.context_formatting import format_structured_payload
+from app.ai.context_formatting import format_retrieved_context, format_structured_payload
 from app.ai.exceptions import AIException, ParsingException
 from app.ai.models import (
     AgentName,
@@ -36,7 +36,7 @@ def _build_user_message(request: AnalysisRequest, prior: AnalysisResult) -> str:
         "datasets": [dataset.model_dump(mode="json") for dataset in request.datasets],
         "business_analysis": prior.business_analysis.model_dump(mode="json"),
     }
-    return format_structured_payload(payload)
+    return format_structured_payload(payload) + format_retrieved_context(request.retrieved_context)
 
 
 class StrategyAgent:

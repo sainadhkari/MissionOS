@@ -8,17 +8,29 @@ from sqlalchemy.orm import Session
 
 from app.ai.agents import BusinessAgent, ExecutiveAgent, RiskAgent, StrategyAgent
 from app.ai.exceptions import AIException
-from app.ai.models import AnalysisRequest, DatasetColumnSummary, DatasetContext, MissionContext
+from app.ai.models import (
+    AnalysisRequest,
+    AnalysisResult,
+    DatasetColumnSummary,
+    DatasetContext,
+    MissionContext,
+    RetrievedChunk,
+)
 from app.ai.orchestrator import AnalysisOrchestrator
 from app.ai.prompt_loader import PromptLoader
 from app.ai.providers import OpenAIClient
 from app.config.settings import settings
+from app.core.vector_storage import VECTOR_STORE_DIR
 from app.database.session import SessionLocal
 from app.models.dataset import Dataset
 from app.models.enums import AnalysisStatus, DatasetUploadStatus
 from app.models.mission import Mission
 from app.models.mission_analysis import MissionAnalysis
 from app.models.user import User
+from app.rag.embedding_service import OpenAIEmbeddingClient
+from app.rag.exceptions import RagException
+from app.rag.retrieval_service import RetrievalService
+from app.rag.vector_store import ChromaVectorStore
 from app.repositories.mission_analysis_repository import MissionAnalysisRepository
 from app.repositories.mission_repository import MissionRepository
 from app.services import mission_service
@@ -70,11 +82,27 @@ def build_dataset_context(dataset: Dataset) -> DatasetContext:
     )
 
 
-def build_analysis_request(mission: Mission, datasets: list[Dataset]) -> AnalysisRequest:
+def build_analysis_request(
+    mission: Mission,
+    datasets: list[Dataset],
+    *,
+    retrieved_context: list[RetrievedChunk] | None = None,
+) -> AnalysisRequest:
     return AnalysisRequest(
         mission=build_mission_context(mission),
         datasets=[build_dataset_context(dataset) for dataset in datasets],
+        retrieved_context=retrieved_context or [],
     )
+
+
+def _default_retrieval_query(mission: Mission) -> str:
+    """The RAG query used for a mission's analysis run when there's no more
+    specific user-supplied query to retrieve for — the mission's own stated
+    problem and objective are the best available proxy for "what's relevant
+    to this analysis", and are retrieved once, up front, then shared across
+    every agent via `AnalysisRequest.retrieved_context` rather than
+    re-queried per stage."""
+    return f"{mission.title}. {mission.problem_statement} {mission.objective}"
 
 
 def start_analysis(db: Session, *, user: User, mission_id: uuid.UUID) -> MissionAnalysis:
@@ -113,6 +141,54 @@ def _build_orchestrator() -> AnalysisOrchestrator:
     )
 
 
+def _build_retrieval_service() -> RetrievalService:
+    # Same "settings, not get_settings()" convention as _build_orchestrator().
+    return RetrievalService(
+        OpenAIEmbeddingClient(settings),
+        ChromaVectorStore(VECTOR_STORE_DIR),
+        top_k=settings.rag_top_k,
+    )
+
+
+async def _retrieve_context(mission: Mission) -> list[RetrievedChunk]:
+    """Best-effort retrieval: RAG is additive on top of a pipeline that
+    already worked without it, so a retrieval failure (embedding API down,
+    vector store unavailable, nothing indexed yet) degrades to "no retrieved
+    context" rather than failing the entire analysis run."""
+    try:
+        retrieval = _build_retrieval_service()
+        matches = await retrieval.retrieve(
+            mission_id=mission.id, query_text=_default_retrieval_query(mission)
+        )
+    except RagException as exc:
+        logger.warning(
+            "RAG retrieval failed for mission %s, proceeding without it: %s: %s",
+            mission.id,
+            type(exc).__name__,
+            exc,
+        )
+        return []
+
+    return [
+        RetrievedChunk(
+            text=match.text,
+            source_filename=str(match.metadata.get("filename", "unknown")),
+            score=match.score,
+        )
+        for match in matches
+    ]
+
+
+async def _run_pipeline_async(mission: Mission, datasets: list[Dataset]) -> AnalysisResult:
+    """Retrieves this mission's relevant evidence once, then runs the
+    four-agent orchestrator with it attached — bridged into with a single
+    `asyncio.run()` call from the sync background task below, rather than
+    one `asyncio.run()` for retrieval and a second for the orchestrator."""
+    retrieved_context = await _retrieve_context(mission)
+    request = build_analysis_request(mission, datasets, retrieved_context=retrieved_context)
+    return await _build_orchestrator().run(request)
+
+
 def run_analysis_pipeline(mission_id: uuid.UUID) -> None:
     """Runs as a FastAPI BackgroundTask after POST /missions/{id}/analyze, so
     it owns its own DB session — the request-scoped session is already
@@ -141,8 +217,7 @@ def run_analysis_pipeline(mission_id: uuid.UUID) -> None:
             if not datasets:
                 raise AIException("No validated datasets remain for this mission.")
 
-            request = build_analysis_request(mission, datasets)
-            result = asyncio.run(_build_orchestrator().run(request))
+            result = asyncio.run(_run_pipeline_async(mission, datasets))
 
             analysis.business_analysis = (
                 result.business_analysis.model_dump(mode="json")

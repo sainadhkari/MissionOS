@@ -44,6 +44,20 @@ export interface DatasetProfile {
   updated_at: string
 }
 
+export type RagIndexStatus = 'pending' | 'indexing' | 'indexed' | 'failed'
+
+export interface DatasetIndex {
+  id: string
+  dataset_id: string
+  status: RagIndexStatus
+  chunk_count: number
+  embedding_model: string | null
+  error_message: string | null
+  indexed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Dataset {
   id: string
   mission_id: string
@@ -53,6 +67,8 @@ export interface Dataset {
   upload_status: DatasetUploadStatus
   created_at: string
   profile: DatasetProfile | null
+  index: DatasetIndex | null
 }
 
 export const NON_TERMINAL_DATASET_STATUSES: DatasetUploadStatus[] = ['uploaded', 'validating']
+export const NON_TERMINAL_RAG_INDEX_STATUSES: RagIndexStatus[] = ['pending', 'indexing']

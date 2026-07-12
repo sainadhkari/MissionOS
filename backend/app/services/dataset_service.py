@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import UploadFile
@@ -5,11 +6,17 @@ from sqlalchemy.orm import Session
 
 from app.core.storage import FileTooLargeError as StorageFileTooLargeError
 from app.core.storage import delete_upload, save_upload
+from app.core.vector_storage import VECTOR_STORE_DIR
 from app.models.dataset import Dataset
 from app.models.enums import DatasetUploadStatus
 from app.models.user import User
+from app.rag.exceptions import RagException
+from app.rag.retrieval_service import mission_collection_name
+from app.rag.vector_store import ChromaVectorStore
 from app.repositories.dataset_repository import DatasetRepository
 from app.services import mission_service
+
+logger = logging.getLogger("missionos.dataset_service")
 
 ALLOWED_EXTENSIONS = {"csv", "xlsx", "json"}
 # Matches the `original_filename` column's String(255) — reject before the
@@ -99,6 +106,20 @@ def delete_dataset(db: Session, *, user: User, dataset_id: uuid.UUID) -> None:
     dataset = repo.get_owned(dataset_id, user.id)
     if dataset is None:
         raise DatasetNotFoundError(dataset_id)
+
+    # Best-effort: the `DatasetIndex` row cascades on delete like `profile`
+    # does, but the vectors themselves live in Chroma, outside Postgres's
+    # transaction — clean them up too so a deleted dataset doesn't keep
+    # contributing retrieved context to its mission's future analysis runs.
+    # Never blocks the delete itself; a vector-store hiccup shouldn't make
+    # dataset deletion fail.
+    try:
+        collection = mission_collection_name(dataset.mission_id)
+        ChromaVectorStore(VECTOR_STORE_DIR).delete_where(
+            collection, where={"dataset_id": str(dataset.id)}
+        )
+    except RagException:
+        logger.warning("Could not remove vectors for deleted dataset %s", dataset_id)
 
     delete_upload(dataset.stored_filename)
     repo.delete(dataset)

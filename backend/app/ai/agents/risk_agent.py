@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from app.ai import parser
 from app.ai.client import AIClient, AIMessage
-from app.ai.context_formatting import format_structured_payload
+from app.ai.context_formatting import format_retrieved_context, format_structured_payload
 from app.ai.exceptions import AIException, ParsingException
 from app.ai.models import AgentName, AnalysisRequest, AnalysisResult, RiskAnalysisOutput
 from app.ai.prompt_loader import PromptLoader
@@ -22,7 +22,7 @@ def _build_user_message(request: AnalysisRequest, prior: AnalysisResult) -> str:
         "business_analysis": prior.business_analysis.model_dump(mode="json"),
         "strategy_analysis": prior.strategy_analysis.model_dump(mode="json"),
     }
-    return format_structured_payload(payload)
+    return format_structured_payload(payload) + format_retrieved_context(request.retrieved_context)
 
 
 class RiskAgent:

@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.database.session import get_db
 from app.models.dataset import Dataset
+from app.models.enums import DatasetUploadStatus
 from app.models.user import User
+from app.rag.indexing_service import run_dataset_indexing
 from app.schemas.dataset import DatasetResponse
 from app.services import dataset_service, mission_service
 from app.services.dataset_profiling_pipeline import run_dataset_profiling
@@ -90,3 +92,34 @@ def delete_dataset(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
         ) from exc
+
+
+@dataset_router.post(
+    "/{dataset_id}/reindex", response_model=DatasetResponse, status_code=status.HTTP_202_ACCEPTED
+)
+def reindex_dataset(
+    dataset_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dataset:
+    """Manually re-runs RAG indexing for a dataset — the same automatic
+    pipeline that runs after upload, triggered on demand. Since indexing
+    always deletes a dataset's existing vectors before re-adding new ones
+    (`app.rag.indexing_service.index_dataset`), this is also how a dataset
+    gets re-indexed after its content changes."""
+    try:
+        dataset = dataset_service.get_dataset(db, user=current_user, dataset_id=dataset_id)
+    except dataset_service.DatasetNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Dataset not found"
+        ) from exc
+
+    if dataset.upload_status != DatasetUploadStatus.READY:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Dataset must be successfully validated before it can be indexed",
+        )
+
+    background_tasks.add_task(run_dataset_indexing, dataset.id)
+    return dataset

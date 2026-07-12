@@ -52,12 +52,26 @@ class DatasetContext(BaseModel):
     categorical_summary: dict[str, Any] = Field(default_factory=dict)
 
 
+class RetrievedChunk(BaseModel):
+    """A single piece of evidence pulled from a mission's indexed dataset
+    content (`app.rag`), shaped for AI consumption — see `MissionContext`
+    for why this doesn't reuse `app.rag.vector_store.VectorMatch` directly."""
+
+    text: str
+    source_filename: str
+    score: float
+
+
 class AnalysisRequest(BaseModel):
-    """The input to `AnalysisOrchestrator.run()`: one mission plus the
-    datasets attached to it."""
+    """The input to `AnalysisOrchestrator.run()`: one mission, the datasets
+    attached to it, and (if any of those datasets are indexed) retrieved
+    evidence relevant to the mission's problem statement and objective —
+    fetched once before the pipeline runs and shared across every agent,
+    rather than re-retrieved per stage."""
 
     mission: MissionContext
     datasets: list[DatasetContext] = Field(default_factory=list)
+    retrieved_context: list[RetrievedChunk] = Field(default_factory=list)
     requested_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -72,6 +86,11 @@ class BusinessAnalysisOutput(BaseModel):
     important_metrics: list[str]
     recommended_next_steps: list[str]
     confidence: float = Field(ge=0.0, le=1.0)
+    # Optional, defaulted so existing stored analyses (from before this field
+    # existed) still parse — quotes/paraphrases of retrieved evidence this
+    # analysis actually grounded its claims in, or empty if no retrieved
+    # context was available/used.
+    evidence_used: list[str] = Field(default_factory=list)
 
 
 class StrategyAnalysisOutput(BaseModel):
@@ -85,6 +104,7 @@ class StrategyAnalysisOutput(BaseModel):
     business_impact: str
     priority: str = Field(min_length=1)
     confidence: float = Field(ge=0.0, le=1.0)
+    evidence_used: list[str] = Field(default_factory=list)
 
 
 class RiskItem(BaseModel):
@@ -106,6 +126,7 @@ class RiskAnalysisOutput(BaseModel):
     recommended_mitigations: list[str]
     overall_risk_level: str = Field(min_length=1)
     confidence: float = Field(ge=0.0, le=1.0)
+    evidence_used: list[str] = Field(default_factory=list)
 
 
 class ExecutiveAnalysisOutput(BaseModel):
@@ -121,6 +142,7 @@ class ExecutiveAnalysisOutput(BaseModel):
     trade_offs: list[str]
     final_recommendation: str = Field(min_length=1)
     confidence: float = Field(ge=0.0, le=1.0)
+    evidence_used: list[str] = Field(default_factory=list)
 
 
 class AnalysisResult(BaseModel):

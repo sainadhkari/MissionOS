@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { datasetService } from '../services/dataset'
 import { getErrorMessage } from '../utils/http'
-import { NON_TERMINAL_DATASET_STATUSES } from '../types/Dataset'
+import { NON_TERMINAL_DATASET_STATUSES, NON_TERMINAL_RAG_INDEX_STATUSES } from '../types/Dataset'
 import type { Dataset } from '../types/Dataset'
 
 const POLL_INTERVAL_MS = 2000
@@ -28,12 +28,16 @@ export function useMissionDatasets(missionId: string | undefined) {
     load()
   }, [load])
 
-  // Poll while any dataset is still being validated, so status badges update
-  // without a manual refresh.
+  // Poll while any dataset is still being validated or RAG-indexed, so
+  // status badges update without a manual refresh. Indexing runs chained
+  // after validation succeeds, so a dataset can be READY while still
+  // showing index.status as pending/indexing.
   useEffect(() => {
     if (state.status !== 'success') return
-    const hasPending = state.data.some((dataset) =>
-      NON_TERMINAL_DATASET_STATUSES.includes(dataset.upload_status)
+    const hasPending = state.data.some(
+      (dataset) =>
+        NON_TERMINAL_DATASET_STATUSES.includes(dataset.upload_status) ||
+        (dataset.index && NON_TERMINAL_RAG_INDEX_STATUSES.includes(dataset.index.status))
     )
     if (!hasPending) return
 

@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import DatasetUploadStatus
+from app.models.enums import DatasetUploadStatus, RagIndexStatus
 
 
 class DatasetColumnInfo(BaseModel):
@@ -33,6 +33,20 @@ class DatasetProfileResponse(BaseModel):
     updated_at: datetime
 
 
+class DatasetIndexResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    dataset_id: uuid.UUID
+    status: RagIndexStatus
+    chunk_count: int
+    embedding_model: str | None
+    error_message: str | None
+    indexed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class DatasetResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -44,3 +58,4 @@ class DatasetResponse(BaseModel):
     upload_status: DatasetUploadStatus
     created_at: datetime
     profile: DatasetProfileResponse | None
+    index: DatasetIndexResponse | None

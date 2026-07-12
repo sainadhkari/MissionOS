@@ -33,4 +33,9 @@ export const datasetService = {
   async remove(datasetId: string): Promise<void> {
     await apiClient.delete(`/datasets/${datasetId}`)
   },
+
+  async reindex(datasetId: string): Promise<Dataset> {
+    const response = await apiClient.post<Dataset>(`/datasets/${datasetId}/reindex`)
+    return response.data
+  },
 }

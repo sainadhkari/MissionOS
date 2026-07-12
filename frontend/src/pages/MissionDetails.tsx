@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, BarChart3, Briefcase, Calendar, Database, Flag, Pencil, Target, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  BarChart3,
+  Briefcase,
+  Calendar,
+  Database,
+  Flag,
+  Pencil,
+  RefreshCw,
+  Sparkles,
+  Target,
+  Trash2,
+} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import Badge from '../components/Badge'
@@ -17,8 +29,15 @@ import { useMissionDatasets } from '../hooks/useMissionDatasets'
 import { getErrorMessage } from '../utils/http'
 import { formatDate } from '../utils/date'
 import { missionPriorityBadgeVariant, missionPriorityLabel, missionStatusBadgeVariant, missionStatusLabel } from '../utils/mission'
-import { datasetStatusBadgeVariant, datasetStatusLabel, formatFileSize } from '../utils/dataset'
+import {
+  datasetStatusBadgeVariant,
+  datasetStatusLabel,
+  formatFileSize,
+  ragIndexStatusBadgeVariant,
+  ragIndexStatusLabel,
+} from '../utils/dataset'
 import type { Mission } from '../types/Mission'
+import type { Dataset } from '../types/Dataset'
 
 type LoadState =
   | { status: 'loading' }
@@ -129,6 +148,7 @@ function MissionDetailsView({
   const [datasetBanner, setDatasetBanner] = useState<string | null>(null)
   const [datasetError, setDatasetError] = useState<string | null>(null)
   const [deletingDatasetId, setDeletingDatasetId] = useState<string | null>(null)
+  const [reindexingId, setReindexingId] = useState<string | null>(null)
 
   async function handleDeleteDataset(datasetId: string) {
     if (!window.confirm('Delete this dataset? This cannot be undone.')) return
@@ -143,6 +163,20 @@ function MissionDetailsView({
       setDatasetError(getErrorMessage(err, 'Could not delete dataset.'))
     } finally {
       setDeletingDatasetId(null)
+    }
+  }
+
+  async function handleReindex(dataset: Dataset) {
+    setDatasetError(null)
+    setReindexingId(dataset.id)
+    try {
+      await datasetService.reindex(dataset.id)
+      setDatasetBanner(`Re-indexing "${dataset.original_filename}" for RAG retrieval…`)
+      datasets.refetch()
+    } catch (err) {
+      setDatasetError(getErrorMessage(err, 'Could not re-index dataset.'))
+    } finally {
+      setReindexingId(null)
     }
   }
 
@@ -282,35 +316,77 @@ function MissionDetailsView({
         )}
         {datasets.status === 'success' && datasets.data.length > 0 && (
           <ul className="flex flex-col divide-y divide-neutral-200 dark:divide-neutral-800">
-            {datasets.data.map((dataset) => (
-              <li key={dataset.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <Link
-                    to={datasetDetailsPath(dataset.id)}
-                    className="block truncate text-sm font-medium text-neutral-900 hover:text-primary-600 dark:text-neutral-100 dark:hover:text-primary-400"
-                  >
-                    {dataset.original_filename}
-                  </Link>
-                  <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
-                    {dataset.file_type.toUpperCase()} · {formatFileSize(dataset.file_size)} ·{' '}
-                    {formatDate(dataset.created_at)}
-                  </p>
-                </div>
-                <Badge variant={datasetStatusBadgeVariant(dataset.upload_status)}>
-                  {datasetStatusLabel(dataset.upload_status)}
-                </Badge>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteDataset(dataset.id)}
-                  disabled={deletingDatasetId === dataset.id}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-danger-50 hover:text-danger-600 disabled:pointer-events-none disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-danger-950/40 dark:hover:text-danger-400"
-                  aria-label={`Delete ${dataset.original_filename}`}
-                  title="Delete"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </li>
-            ))}
+            {datasets.data.map((dataset) => {
+              const index = dataset.index
+              return (
+                <li key={dataset.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      to={datasetDetailsPath(dataset.id)}
+                      className="block truncate text-sm font-medium text-neutral-900 hover:text-primary-600 dark:text-neutral-100 dark:hover:text-primary-400"
+                    >
+                      {dataset.original_filename}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
+                      {dataset.file_type.toUpperCase()} · {formatFileSize(dataset.file_size)} ·{' '}
+                      {formatDate(dataset.created_at)}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" aria-hidden="true" />
+                        {index ? (
+                          <Badge variant={ragIndexStatusBadgeVariant(index.status)}>
+                            {ragIndexStatusLabel(index.status)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="neutral">Not Indexed</Badge>
+                        )}
+                      </span>
+                      {index?.status === 'indexed' && (
+                        <>
+                          <span>{index.chunk_count} chunks</span>
+                          <span>{index.embedding_model}</span>
+                          {index.indexed_at && <span>Last indexed {formatDate(index.indexed_at)}</span>}
+                        </>
+                      )}
+                      {index?.status === 'failed' && index.error_message && (
+                        <span className="text-danger-600 dark:text-danger-400">{index.error_message}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Badge variant={datasetStatusBadgeVariant(dataset.upload_status)}>
+                      {datasetStatusLabel(dataset.upload_status)}
+                    </Badge>
+                    {dataset.upload_status === 'ready' && (
+                      <button
+                        type="button"
+                        onClick={() => handleReindex(dataset)}
+                        disabled={reindexingId === dataset.id}
+                        className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-neutral-100 disabled:pointer-events-none disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-neutral-800"
+                        aria-label={`Re-index ${dataset.original_filename}`}
+                        title="Re-index for RAG retrieval"
+                      >
+                        <RefreshCw
+                          className={`h-4 w-4 ${reindexingId === dataset.id ? 'animate-spin' : ''}`}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteDataset(dataset.id)}
+                      disabled={deletingDatasetId === dataset.id}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-danger-50 hover:text-danger-600 disabled:pointer-events-none disabled:opacity-50 dark:text-neutral-400 dark:hover:bg-danger-950/40 dark:hover:text-danger-400"
+                      aria-label={`Delete ${dataset.original_filename}`}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         )}
       </Card>

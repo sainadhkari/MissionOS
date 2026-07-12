@@ -28,3 +28,10 @@ class AnalysisStatus(enum.StrEnum):
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class RagIndexStatus(enum.StrEnum):
+    PENDING = "pending"
+    INDEXING = "indexing"
+    INDEXED = "indexed"
+    FAILED = "failed"

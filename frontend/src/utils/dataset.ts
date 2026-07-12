@@ -1,5 +1,5 @@
 import type { BadgeVariant } from '../components/Badge'
-import type { DatasetColumnCategory, DatasetUploadStatus } from '../types/Dataset'
+import type { DatasetColumnCategory, DatasetUploadStatus, RagIndexStatus } from '../types/Dataset'
 
 const STATUS_LABELS: Record<DatasetUploadStatus, string> = {
   uploaded: 'Uploaded',
@@ -46,6 +46,28 @@ export function columnCategoryBadgeVariant(category: DatasetColumnCategory): Bad
 export function formatStatValue(value: number | null): string {
   if (value === null) return '—'
   return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(2)
+}
+
+const RAG_INDEX_STATUS_LABELS: Record<RagIndexStatus, string> = {
+  pending: 'Not Indexed',
+  indexing: 'Indexing…',
+  indexed: 'Indexed',
+  failed: 'Indexing Failed',
+}
+
+const RAG_INDEX_STATUS_BADGE_VARIANTS: Record<RagIndexStatus, BadgeVariant> = {
+  pending: 'neutral',
+  indexing: 'warning',
+  indexed: 'success',
+  failed: 'danger',
+}
+
+export function ragIndexStatusLabel(status: RagIndexStatus): string {
+  return RAG_INDEX_STATUS_LABELS[status]
+}
+
+export function ragIndexStatusBadgeVariant(status: RagIndexStatus): BadgeVariant {
+  return RAG_INDEX_STATUS_BADGE_VARIANTS[status]
 }
 
 export function formatFileSize(bytes: number): string {

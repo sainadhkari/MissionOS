@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { datasetService } from '../services/dataset'
 import { getErrorMessage } from '../utils/http'
+import { NON_TERMINAL_DATASET_STATUSES, NON_TERMINAL_RAG_INDEX_STATUSES } from '../types/Dataset'
 import type { Dataset } from '../types/Dataset'
 import type { Mission } from '../types/Mission'
+
+const POLL_INTERVAL_MS = 2500
 
 export interface DatasetWithMission extends Dataset {
   missionTitle: string
@@ -37,6 +40,21 @@ export function useAllDatasets(missions: Mission[] | null) {
     if (!missions) return
     load(missions)
   }, [missions, load])
+
+  // Poll while any dataset is still being validated or RAG-indexed, so
+  // status badges and vector counts update without a manual refresh.
+  useEffect(() => {
+    if (state.status !== 'success' || !missions) return
+    const hasPending = state.data.some(
+      (dataset) =>
+        NON_TERMINAL_DATASET_STATUSES.includes(dataset.upload_status) ||
+        (dataset.index && NON_TERMINAL_RAG_INDEX_STATUSES.includes(dataset.index.status))
+    )
+    if (!hasPending) return
+
+    const timeout = setTimeout(() => load(missions), POLL_INTERVAL_MS)
+    return () => clearTimeout(timeout)
+  }, [state, missions, load])
 
   const refetch = useCallback(() => {
     if (!missions) return

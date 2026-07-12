@@ -6,6 +6,7 @@ import {
   Database,
   FileJson,
   FileSpreadsheet,
+  Sparkles,
   Table as TableIcon,
   UploadCloud,
 } from 'lucide-react'
@@ -25,7 +26,15 @@ import { useAllDatasets } from '../hooks/useAllDatasets'
 import { datasetService } from '../services/dataset'
 import { getErrorMessage } from '../utils/http'
 import { formatDate } from '../utils/date'
-import { columnCategoryBadgeVariant, columnCategoryLabel, datasetStatusBadgeVariant, datasetStatusLabel, formatFileSize } from '../utils/dataset'
+import {
+  columnCategoryBadgeVariant,
+  columnCategoryLabel,
+  datasetStatusBadgeVariant,
+  datasetStatusLabel,
+  formatFileSize,
+  ragIndexStatusBadgeVariant,
+  ragIndexStatusLabel,
+} from '../utils/dataset'
 import { computeDatasetQuality } from '../utils/executiveDashboard'
 import type { DatasetWithMission } from '../hooks/useAllDatasets'
 
@@ -67,6 +76,8 @@ function DataLibrary() {
   const totalSize = datasets.reduce((sum, dataset) => sum + dataset.file_size, 0)
   const recentUploads = datasets.slice(0, 5)
   const aggregateQuality = computeDatasetQuality(datasets)
+  const totalVectors = datasets.reduce((sum, dataset) => sum + (dataset.index?.chunk_count ?? 0), 0)
+  const indexedCount = datasets.filter((dataset) => dataset.index?.status === 'indexed').length
 
   return (
     <div>
@@ -116,7 +127,7 @@ function DataLibrary() {
         </Banner>
       )}
 
-      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Datasets</p>
           <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
@@ -140,6 +151,20 @@ function DataLibrary() {
             </div>
           ) : (
             <p className="mt-2 text-sm text-neutral-400 dark:text-neutral-500">Awaiting validated data</p>
+          )}
+        </Card>
+        <Card>
+          <p className="flex items-center gap-1.5 text-sm font-medium text-neutral-500 dark:text-neutral-400">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            Vectors Indexed
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+            {datasetsState.status === 'success' ? <AnimatedCounter value={totalVectors} /> : '—'}
+          </p>
+          {datasetsState.status === 'success' && datasets.length > 0 && (
+            <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">
+              {indexedCount}/{datasets.length} datasets indexed
+            </p>
           )}
         </Card>
         <Card>
@@ -206,6 +231,11 @@ function DataLibrary() {
                       <Badge variant={datasetStatusBadgeVariant(dataset.upload_status)}>
                         {datasetStatusLabel(dataset.upload_status)}
                       </Badge>
+                      {dataset.index && (
+                        <Badge variant={ragIndexStatusBadgeVariant(dataset.index.status)}>
+                          {ragIndexStatusLabel(dataset.index.status)}
+                        </Badge>
+                      )}
                       {rowQuality && <Badge variant={rowQuality.variant}>{rowQuality.scorePercent}% quality</Badge>}
                       {profile && (
                         <button
@@ -254,6 +284,14 @@ function DataLibrary() {
                         </strong>{' '}
                         duplicate rows
                       </span>
+                      {dataset.index?.status === 'indexed' && (
+                        <span>
+                          <strong className="font-medium text-neutral-700 dark:text-neutral-300">
+                            {dataset.index.chunk_count.toLocaleString()}
+                          </strong>{' '}
+                          vector chunks
+                        </span>
+                      )}
                     </div>
                   )}
 
