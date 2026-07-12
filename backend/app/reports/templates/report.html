@@ -2,17 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>{{ report.mission.title }} — Mission Report</title>
+<title>{{ report.mission.title }} — Executive Business Report</title>
 <style>
   {% if is_pdf %}
   @page {
     size: A4;
-    margin: 2.2cm 2cm 2.5cm 2cm;
+    margin: 2cm 1.8cm 2.4cm 1.8cm;
     @frame footer_frame {
       -pdf-frame-content: footer_content;
       bottom: 1cm;
-      margin-left: 2cm;
-      margin-right: 2cm;
+      margin-left: 1.8cm;
+      margin-right: 1.8cm;
       height: 1cm;
     }
   }
@@ -21,144 +21,481 @@
   body {
     font-family: Helvetica, Arial, sans-serif;
     color: #1f2937;
-    font-size: 10.5pt;
+    font-size: 10pt;
     line-height: 1.5;
   }
-  h1, h2, h3 { font-family: Helvetica, Arial, sans-serif; color: #1e3a8a; }
-  h1 { font-size: 20pt; margin-bottom: 2pt; }
-  .subtitle { color: #6b7280; font-size: 10pt; margin-bottom: 4pt; }
-  .meta { color: #6b7280; font-size: 8.5pt; margin-bottom: 18pt; }
-  h2 {
-    font-size: 13pt;
-    border-bottom: 1.5pt solid #1e3a8a;
-    padding-bottom: 3pt;
+  h1, h2, h3 { font-family: Helvetica, Arial, sans-serif; }
+  p { margin: 0 0 6pt 0; }
+  ul { margin: 0 0 8pt 0; padding-left: 16pt; }
+  li { margin-bottom: 3pt; }
+
+  /* ---------- Section headers (used throughout) ---------- */
+  .section-header {
+    font-size: 14pt;
+    color: #1e1b4b;
+    background-color: #eef2ff;
+    padding: 7pt 10pt;
     margin-top: 20pt;
-    margin-bottom: 8pt;
+    margin-bottom: 10pt;
+    border-left: 5pt solid #4f46e5;
+    page-break-after: avoid;
   }
-  h3 {
-    font-size: 10.5pt;
+  .sub-header {
+    font-size: 10pt;
     text-transform: uppercase;
     letter-spacing: 0.5pt;
     color: #4b5563;
     margin-top: 10pt;
-    margin-bottom: 3pt;
+    margin-bottom: 4pt;
+    page-break-after: avoid;
   }
-  p { margin: 0 0 6pt 0; }
-  ul { margin: 0 0 8pt 0; padding-left: 16pt; }
-  li { margin-bottom: 3pt; }
+
+  /* ---------- Badges ---------- */
   .badge {
     display: inline-block;
-    padding: 2pt 7pt;
-    border-radius: 8pt;
+    padding: 2.5pt 8pt;
+    border-radius: 9pt;
     font-size: 8.5pt;
     font-weight: bold;
-    background-color: #eff6ff;
-    color: #1e3a8a;
   }
-  .section { margin-bottom: 6pt; }
-  table.risk-table { width: 100%; border-collapse: collapse; margin-bottom: 8pt; }
-  table.risk-table th, table.risk-table td {
-    border: 0.5pt solid #d1d5db;
-    padding: 5pt 6pt;
-    text-align: left;
+  .badge-primary  { background-color: #eef2ff; color: #4338ca; }
+  .badge-success  { background-color: #ecfdf5; color: #047857; }
+  .badge-warning  { background-color: #fffbeb; color: #b45309; }
+  .badge-danger   { background-color: #fef2f2; color: #b91c1c; }
+  .badge-info     { background-color: #f0f9ff; color: #0369a1; }
+  .badge-neutral  { background-color: #f3f4f6; color: #374151; }
+
+  /* ---------- Cover page ----------
+     A single one-row table, not a plain <div>: a colored <div> wrapping a
+     <table> was observed to make xhtml2pdf split the inner table across
+     several pages (one row per page) even with page-break-inside: avoid
+     on both elements. Making the whole cover exactly one table row leaves
+     no row boundary for it to split on. */
+  table.cover-page-table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
+  table.cover-page-table td.cover-page-cell {
+    background-color: #1e1b4b;
+    color: #ffffff;
+    padding: 40pt 34pt;
+  }
+  .cover-wordmark { font-size: 15pt; font-weight: bold; letter-spacing: 0.5pt; color: #ffffff; }
+  .cover-eyebrow {
+    font-size: 10.5pt;
+    letter-spacing: 2pt;
+    color: #a5b4fc;
+    margin-top: 4pt;
+    text-transform: uppercase;
+  }
+  .cover-title {
+    font-size: 27pt;
+    color: #ffffff;
+    margin-top: 90pt;
+    margin-bottom: 6pt;
+    line-height: 1.25;
+  }
+  .cover-objective { color: #c7d2fe; font-size: 10.5pt; margin-bottom: 30pt; }
+  table.cover-meta { width: 100%; border-collapse: collapse; margin-top: 10pt; page-break-inside: avoid; }
+  table.cover-meta td {
+    padding: 8pt 0;
+    border-top: 0.5pt solid #4338ca;
+    font-size: 9.5pt;
+    color: #c7d2fe;
+    vertical-align: middle;
+  }
+  table.cover-meta td.cover-meta-value { color: #ffffff; font-weight: bold; text-align: right; }
+  .cover-footer {
+    margin-top: 40pt;
+    font-size: 8.5pt;
+    color: #818cf8;
+    border-top: 0.5pt solid #4338ca;
+    padding-top: 10pt;
+  }
+
+  /* ---------- KPI dashboard ---------- */
+  table.kpi-row { width: 100%; border-collapse: separate; border-spacing: 6pt; margin-bottom: 6pt; }
+  table.kpi-row td.kpi-card {
+    width: 33.3%;
+    background-color: #f9fafb;
+    border: 0.75pt solid #e5e7eb;
+    border-radius: 8pt;
+    padding: 10pt 12pt;
+    vertical-align: top;
+    page-break-inside: avoid;
+  }
+  .kpi-label {
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.5pt;
+    color: #6b7280;
+    margin-bottom: 4pt;
+  }
+  .kpi-value { font-size: 17pt; font-weight: bold; color: #111827; margin-bottom: 4pt; }
+  .kpi-caption { font-size: 8pt; color: #9ca3af; margin-top: 4pt; }
+
+  /* ---------- Executive snapshot ---------- */
+  table.snapshot-table { width: 100%; border-collapse: collapse; margin-bottom: 6pt; }
+  table.snapshot-table td {
+    padding: 8pt 8pt;
+    border-bottom: 0.5pt solid #e5e7eb;
     font-size: 9.5pt;
     vertical-align: top;
   }
-  table.risk-table th { background-color: #f3f4f6; color: #374151; }
+  td.snapshot-icon { width: 20pt; font-size: 11pt; color: #4f46e5; text-align: center; }
+  td.snapshot-label { width: 130pt; font-weight: bold; color: #374151; }
+  td.snapshot-value { color: #1f2937; }
+
+  /* ---------- Charts ---------- */
+  table.chart-grid { width: 100%; border-collapse: separate; border-spacing: 6pt; margin-bottom: 6pt; }
+  table.chart-grid td.chart-cell {
+    background-color: #ffffff;
+    border: 0.75pt solid #e5e7eb;
+    border-radius: 8pt;
+    padding: 10pt;
+    vertical-align: top;
+    page-break-inside: avoid;
+  }
+  .chart-title { font-size: 9.5pt; font-weight: bold; color: #374151; margin-bottom: 6pt; }
+
+  /* ---------- Generic data table ---------- */
+  table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 8pt; }
+  table.data-table th, table.data-table td {
+    border: 0.5pt solid #d1d5db;
+    padding: 5pt 6pt;
+    text-align: left;
+    font-size: 9pt;
+    vertical-align: top;
+  }
+  table.data-table th { background-color: #eef2ff; color: #1e1b4b; }
+
+  /* ---------- Numbered recommendation cards ---------- */
+  table.numbered-list { width: 100%; border-collapse: separate; border-spacing: 0 6pt; }
+  table.numbered-list td {
+    border: 0.5pt solid #e5e7eb;
+    border-left: 4pt solid #4f46e5;
+    border-radius: 4pt;
+    padding: 8pt 10pt;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+  td.numbered-index {
+    width: 22pt;
+    font-size: 12pt;
+    font-weight: bold;
+    color: #4f46e5;
+    text-align: center;
+    border-left: none;
+  }
+
+  /* ---------- Risk cards ---------- */
+  table.risk-card-list { width: 100%; border-collapse: separate; border-spacing: 0 6pt; }
+  table.risk-card-list td {
+    border: 0.5pt solid #e5e7eb;
+    border-radius: 4pt;
+    padding: 8pt 10pt;
+    font-size: 9.5pt;
+    page-break-inside: avoid;
+  }
+
+  /* ---------- Roadmap ---------- */
+  .roadmap-phase {
+    border: 0.5pt solid #e5e7eb;
+    border-left: 5pt solid #4f46e5;
+    border-radius: 4pt;
+    padding: 8pt 10pt;
+    margin-bottom: 2pt;
+    page-break-inside: avoid;
+  }
+  .roadmap-phase-label { font-size: 8.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5pt; color: #4f46e5; }
+  .roadmap-phase-desc { font-size: 9.5pt; color: #1f2937; margin-top: 2pt; }
+  .roadmap-arrow { text-align: center; color: #a5b4fc; font-size: 11pt; margin: 1pt 0; }
+
+  /* ---------- Preserved detailed sections ---------- */
+  .detail-divider {
+    font-size: 18pt;
+    color: #1e1b4b;
+    border-bottom: 2pt solid #1e1b4b;
+    padding-bottom: 6pt;
+    margin-top: 0;
+    margin-bottom: 4pt;
+  }
+  .detail-divider-subtitle { color: #6b7280; font-size: 9.5pt; margin-bottom: 14pt; }
+
   .footer-text { font-size: 8pt; color: #9ca3af; text-align: center; }
 </style>
 </head>
 <body>
 
-  <h1>{{ report.mission.title }}</h1>
-  <p class="subtitle">{{ report.mission.business_domain }} — Mission Analysis Report</p>
-  <p class="meta">Generated {{ report.generated_at.strftime('%B %d, %Y at %H:%M UTC') }}</p>
+  <!-- ============ COVER PAGE ============ -->
+  <table class="cover-page-table">
+    <tr><td class="cover-page-cell">
 
-  <h2>Mission Information</h2>
-  <div class="section">
-    <h3>Title</h3>
-    <p>{{ report.mission.title }}</p>
-    <h3>Business Domain</h3>
-    <p>{{ report.mission.business_domain }}</p>
-    <h3>Objective</h3>
-    <p>{{ report.mission.objective }}</p>
+    <div class="cover-wordmark">MissionOS</div>
+    <div class="cover-eyebrow">AI Executive Business Report</div>
+
+    <h1 class="cover-title">{{ report.mission.title }}</h1>
+    <p class="cover-objective">{{ report.mission.objective }}</p>
+
+    <table class="cover-meta">
+      <tr>
+        <td>Business Domain</td>
+        <td class="cover-meta-value">{{ report.mission.business_domain }}</td>
+      </tr>
+      <tr>
+        <td>Priority</td>
+        <td class="cover-meta-value">{{ report.mission.priority | capitalize }}</td>
+      </tr>
+      <tr>
+        <td>Analysis Status</td>
+        <td class="cover-meta-value">{{ report.analysis_status | capitalize }}</td>
+      </tr>
+      <tr>
+        <td>Generated</td>
+        <td class="cover-meta-value">{{ report.generated_at.strftime('%B %d, %Y at %H:%M UTC') }}</td>
+      </tr>
+    </table>
+
+    <div class="cover-footer">MissionOS — AI-Powered Mission Analysis Platform · Confidential</div>
+
+    </td></tr>
+  </table>
+
+  {% if is_pdf %}<div style="page-break-after: always;"></div>{% endif %}
+
+  <!-- ============ KPI DASHBOARD ============ -->
+  <h2 class="section-header">Executive KPI Dashboard</h2>
+  <table class="kpi-row">
+    <tr>
+      {% for kpi in report.kpis[:3] %}
+      <td class="kpi-card">
+        <div class="kpi-label">{{ kpi.label }}</div>
+        <div class="kpi-value">{{ kpi.value }}</div>
+        <span class="badge badge-{{ kpi.variant }}">{{ kpi.badge_label }}</span>
+        <div class="kpi-caption">{{ kpi.caption }}</div>
+      </td>
+      {% endfor %}
+    </tr>
+  </table>
+  <table class="kpi-row">
+    <tr>
+      {% for kpi in report.kpis[3:6] %}
+      <td class="kpi-card">
+        <div class="kpi-label">{{ kpi.label }}</div>
+        <div class="kpi-value">{{ kpi.value }}</div>
+        <span class="badge badge-{{ kpi.variant }}">{{ kpi.badge_label }}</span>
+        <div class="kpi-caption">{{ kpi.caption }}</div>
+      </td>
+      {% endfor %}
+    </tr>
+  </table>
+
+  <!-- ============ EXECUTIVE SNAPSHOT ============ -->
+  <h2 class="section-header">Executive Snapshot</h2>
+  <table class="snapshot-table">
+    <tr>
+      <td class="snapshot-icon">&#9679;</td>
+      <td class="snapshot-label">Biggest Problem</td>
+      <td class="snapshot-value">{{ report.business_analysis.business_problem }}</td>
+    </tr>
+    <tr>
+      <td class="snapshot-icon">&#9679;</td>
+      <td class="snapshot-label">Biggest Opportunity</td>
+      <td class="snapshot-value">{{ report.biggest_opportunity }}</td>
+    </tr>
+    <tr>
+      <td class="snapshot-icon">&#9650;</td>
+      <td class="snapshot-label">Highest Risk</td>
+      <td class="snapshot-value">{{ report.highest_risk_summary }}</td>
+    </tr>
+    <tr>
+      <td class="snapshot-icon">&#9679;</td>
+      <td class="snapshot-label">Expected Business Impact</td>
+      <td class="snapshot-value">{{ report.strategy_analysis.business_impact }}</td>
+    </tr>
+    <tr>
+      <td class="snapshot-icon">&#9733;</td>
+      <td class="snapshot-label">Final Recommendation</td>
+      <td class="snapshot-value">{{ report.executive_analysis.final_recommendation }}</td>
+    </tr>
+  </table>
+
+  <!-- ============ CHARTS ============ -->
+  <h2 class="section-header">Visual Insights</h2>
+  <table class="chart-grid">
+    <tr>
+      <td class="chart-cell">
+        <div class="chart-title">Business Output Breakdown</div>
+        <img src="{{ report.charts.business_breakdown }}" width="480" height="132" />
+      </td>
+    </tr>
+    <tr>
+      <td class="chart-cell">
+        <div class="chart-title">Risk Categories</div>
+        <img src="{{ report.charts.risk_categories }}" width="370" height="200" />
+      </td>
+    </tr>
+    <tr>
+      <td class="chart-cell">
+        <div class="chart-title">Dataset Column Types</div>
+        <img src="{{ report.charts.dataset_summary }}" width="370" height="200" />
+      </td>
+    </tr>
+  </table>
+
+  <!-- ============ DATASET SUMMARY ============ -->
+  <h2 class="section-header">Dataset Summary</h2>
+  <table class="data-table">
+    <tr>
+      <th>Dataset</th>
+      <th>Rows</th>
+      <th>Columns</th>
+      <th>Missing Values</th>
+      <th>Duplicate Rows</th>
+      <th>Detected Column Types</th>
+      <th>Validation</th>
+      <th>Quality</th>
+    </tr>
+    {% for ds in report.datasets %}
+    <tr>
+      <td>{{ ds.filename }}</td>
+      <td>{{ ds.row_count }}</td>
+      <td>{{ ds.column_count }}</td>
+      <td>{{ ds.missing_value_count }}</td>
+      <td>{{ ds.duplicate_row_count }}</td>
+      <td>Numeric: {{ ds.numeric_column_count }} · Categorical: {{ ds.categorical_column_count }} · Date: {{ ds.date_column_count }}</td>
+      <td><span class="badge badge-{{ ds.validation_status_variant }}">{{ ds.validation_status_label }}</span></td>
+      <td><span class="badge badge-{{ ds.quality_variant }}">{{ ds.quality_percent }}% {{ ds.quality_label }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <!-- ============ TOP 5 RECOMMENDATIONS ============ -->
+  <h2 class="section-header">Top 5 Recommendations</h2>
+  <table class="numbered-list">
+    {% for item in report.top_recommendations %}
+    <tr>
+      <td class="numbered-index">{{ loop.index }}</td>
+      <td>{{ item }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <!-- ============ TOP 5 CRITICAL RISKS ============ -->
+  <h2 class="section-header">Top 5 Critical Risks</h2>
+  {% if report.top_risks %}
+  <table class="risk-card-list">
+    {% for risk in report.top_risks %}
+    <tr>
+      <td>
+        <span class="badge badge-{{ risk.severity | severity_variant }}">{{ risk.severity }}</span>
+        <span class="badge badge-neutral">{{ risk.category }}</span>
+        <p style="margin-top:5pt; font-weight:bold; color:#111827;">{{ risk.title }}</p>
+        <p style="margin-top:2pt;"><strong>Impact:</strong> {{ risk.impact }}</p>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>No critical risks identified.</p>
+  {% endif %}
+
+  <!-- ============ BUSINESS ROADMAP ============ -->
+  <h2 class="section-header">Business Roadmap</h2>
+  {% for phase in report.roadmap %}
+  <div class="roadmap-phase">
+    <div class="roadmap-phase-label">{{ phase.label }}</div>
+    <div class="roadmap-phase-desc">{{ phase.description }}</div>
   </div>
+  {% if not loop.last %}<div class="roadmap-arrow">&#8595;</div>{% endif %}
+  {% endfor %}
 
-  <h2>Business Analysis</h2>
-  <div class="section">
-    <h3>Business Problem</h3>
+  {% if is_pdf %}<div style="page-break-before: always;"></div>{% endif %}
+
+  <!-- ============ DETAILED ANALYSIS (preserved sections) ============ -->
+  <h1 class="detail-divider">Detailed Analysis</h1>
+  <p class="detail-divider-subtitle">Full agent-by-agent findings behind the executive summary above.</p>
+
+  <h2 class="section-header">Business Analysis</h2>
+  <div>
+    <span class="badge badge-{{ report.business_analysis.confidence | confidence_variant }}">
+      {{ (report.business_analysis.confidence * 100) | round | int }}% confidence — {{ report.business_analysis.confidence | confidence_label }}
+    </span>
+    <h3 class="sub-header">Business Problem</h3>
     <p>{{ report.business_analysis.business_problem }}</p>
-    <h3>Opportunities</h3>
+    <h3 class="sub-header">Key Opportunities</h3>
     <ul>{% for item in report.business_analysis.key_opportunities %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>Metrics</h3>
+    <h3 class="sub-header">Important Metrics</h3>
     <ul>{% for item in report.business_analysis.important_metrics %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>Recommended Next Steps</h3>
+    <h3 class="sub-header">Recommended Next Steps</h3>
     <ul>{% for item in report.business_analysis.recommended_next_steps %}<li>{{ item }}</li>{% endfor %}</ul>
   </div>
 
-  <h2>Strategy</h2>
-  <div class="section">
-    <h3>Objectives</h3>
+  <h2 class="section-header">Strategy</h2>
+  <div>
+    <span class="badge badge-{{ report.strategy_analysis.priority | severity_variant }}">{{ report.strategy_analysis.priority }} priority</span>
+    <span class="badge badge-{{ report.strategy_analysis.confidence | confidence_variant }}">
+      {{ (report.strategy_analysis.confidence * 100) | round | int }}% confidence
+    </span>
+    <h3 class="sub-header">Strategic Objectives</h3>
     <ul>{% for item in report.strategy_analysis.strategic_objectives %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>Initiatives</h3>
+    <h3 class="sub-header">Recommended Initiatives</h3>
     <ul>{% for item in report.strategy_analysis.recommended_initiatives %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>Roadmap</h3>
+    <h3 class="sub-header">Implementation Roadmap</h3>
     <ul>{% for item in report.strategy_analysis.implementation_roadmap %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>KPIs</h3>
+    <h3 class="sub-header">KPIs</h3>
     <ul>{% for item in report.strategy_analysis.kpis %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>Business Impact</h3>
+    <h3 class="sub-header">Business Impact</h3>
     <p>{{ report.strategy_analysis.business_impact }}</p>
-    <h3>Priority</h3>
-    <p><span class="badge">{{ report.strategy_analysis.priority }}</span></p>
   </div>
 
-  <h2>Risk Assessment</h2>
-  <div class="section">
-    <h3>Overall Risk</h3>
-    <p><span class="badge">{{ report.risk_analysis.overall_risk_level }}</span></p>
-    <h3>Critical Risks</h3>
-    {% if report.risk_analysis.critical_risks %}
-    <table class="risk-table">
-      <tr>
-        <th>Title</th><th>Category</th><th>Severity</th><th>Probability</th><th>Impact</th><th>Mitigation</th>
-      </tr>
-      {% for risk in report.risk_analysis.critical_risks %}
-      <tr>
-        <td>{{ risk.title }}</td>
-        <td>{{ risk.category }}</td>
-        <td>{{ risk.severity }}</td>
-        <td>{{ risk.probability }}</td>
-        <td>{{ risk.impact }}</td>
-        <td>{{ risk.mitigation }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}
-    <p>None identified.</p>
-    {% endif %}
-    <h3>Assumptions</h3>
+  <h2 class="section-header">Risk Assessment</h2>
+  <div>
+    <span class="badge badge-{{ report.risk_analysis.overall_risk_level | severity_variant }}">{{ report.risk_analysis.overall_risk_level }} overall risk</span>
+    <span class="badge badge-{{ report.risk_analysis.confidence | confidence_variant }}">
+      {{ (report.risk_analysis.confidence * 100) | round | int }}% confidence
+    </span>
+    <h3 class="sub-header">Assumptions</h3>
     <ul>{% for item in report.risk_analysis.assumptions %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>Mitigations</h3>
+    <h3 class="sub-header">Recommended Mitigations</h3>
     <ul>{% for item in report.risk_analysis.recommended_mitigations %}<li>{{ item }}</li>{% endfor %}</ul>
+    <p style="color:#6b7280; font-size:9pt;">The complete risk register ({{ report.risk_analysis.critical_risks | length }} risks, all fields) is in Appendix A.</p>
   </div>
 
-  <h2>Executive Summary</h2>
-  <div class="section">
-    <h3>Executive Summary</h3>
+  <h2 class="section-header">Executive Summary</h2>
+  <div>
+    <span class="badge badge-{{ report.executive_analysis.confidence | confidence_variant }}">
+      {{ (report.executive_analysis.confidence * 100) | round | int }}% confidence
+    </span>
+    <h3 class="sub-header">Executive Summary</h3>
     <p>{{ report.executive_analysis.executive_summary }}</p>
-    <h3>Overall Assessment</h3>
-    <p>{{ report.executive_analysis.final_recommendation }}</p>
-    <h3>Strategic Recommendations</h3>
-    <ul>{% for item in report.strategy_analysis.recommended_initiatives %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>Trade-offs</h3>
+    <h3 class="sub-header">Key Findings</h3>
+    <ul>{% for item in report.executive_analysis.key_findings %}<li>{{ item }}</li>{% endfor %}</ul>
+    <h3 class="sub-header">Trade-offs</h3>
     <ul>{% for item in report.executive_analysis.trade_offs %}<li>{{ item }}</li>{% endfor %}</ul>
-    <h3>Implementation Priorities</h3>
-    <p><span class="badge">{{ report.strategy_analysis.priority }}</span></p>
-    <h3>Expected Outcomes</h3>
-    <p>{{ report.strategy_analysis.business_impact }}</p>
-    <h3>Confidence</h3>
-    <p><span class="badge">{{ (report.executive_analysis.confidence * 100) | round | int }}% confidence</span></p>
+    <h3 class="sub-header">Final Recommendation</h3>
+    <p>{{ report.executive_analysis.final_recommendation }}</p>
   </div>
+
+  {% if is_pdf %}<div style="page-break-before: always;"></div>{% endif %}
+
+  <h2 class="section-header">Appendix A: Complete Risk Register</h2>
+  {% if report.risk_analysis.critical_risks %}
+  <table class="data-table">
+    <tr>
+      <th>Title</th><th>Category</th><th>Severity</th><th>Probability</th><th>Impact</th><th>Mitigation</th>
+    </tr>
+    {% for risk in report.risk_analysis.critical_risks %}
+    <tr>
+      <td>{{ risk.title }}</td>
+      <td>{{ risk.category }}</td>
+      <td><span class="badge badge-{{ risk.severity | severity_variant }}">{{ risk.severity }}</span></td>
+      <td>{{ risk.probability }}</td>
+      <td>{{ risk.impact }}</td>
+      <td>{{ risk.mitigation }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p>No risks were identified for this mission.</p>
+  {% endif %}
 
   {% if is_pdf %}
   <div id="footer_content" class="footer-text">
