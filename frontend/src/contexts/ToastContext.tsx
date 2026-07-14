@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { PropsWithChildren } from 'react'
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -73,6 +73,14 @@ export function ToastProvider({ children }: PropsWithChildren) {
   const [history, setHistory] = useState<ToastRecord[]>([])
   const [liveToastsEnabled, setLiveToastsEnabledState] = useState(readLiveToastsEnabled)
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  useEffect(() => {
+    const timersOnMount = timers.current
+    return () => {
+      timersOnMount.forEach((timer) => clearTimeout(timer))
+      timersOnMount.clear()
+    }
+  }, [])
 
   const setLiveToastsEnabled = useCallback((enabled: boolean) => {
     setLiveToastsEnabledState(enabled)

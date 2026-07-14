@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { AUTH_TOKEN_KEY } from '../constants/auth'
+import { AUTH_TOKEN_KEY, SESSION_EXPIRED_FLAG_KEY } from '../constants/auth'
+import { ROUTES } from '../constants/routes'
 import { config } from '../config'
 
 const apiClient = axios.create({
@@ -37,6 +38,21 @@ apiClient.interceptors.response.use(
         // Not valid JSON after all -- leave the Blob as-is.
       }
     }
+
+    // A 401 only means "your session expired" if there was a session to
+    // expire -- /auth/login and /auth/register themselves return 401/other
+    // errors for bad credentials before any token exists, and that's a
+    // normal, per-attempt error the page already surfaces, not a forced
+    // logout. Checking for an existing token is what tells the two apart
+    // without hardcoding either endpoint's path here.
+    if (axios.isAxiosError(error) && error.response?.status === 401 && localStorage.getItem(AUTH_TOKEN_KEY)) {
+      localStorage.removeItem(AUTH_TOKEN_KEY)
+      if (window.location.pathname !== ROUTES.login) {
+        sessionStorage.setItem(SESSION_EXPIRED_FLAG_KEY, '1')
+        window.location.href = ROUTES.login
+      }
+    }
+
     return Promise.reject(error)
   }
 )

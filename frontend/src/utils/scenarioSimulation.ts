@@ -113,10 +113,6 @@ function weightedDelta(params: ScenarioParameters, weights: WeightTable): number
   )
 }
 
-export function isScenarioAdjusted(params: ScenarioParameters): boolean {
-  return Object.values(params).some((value) => value !== 0)
-}
-
 export interface ScenarioProjection {
   revenueIndex: number
   revenueIndexDelta: number

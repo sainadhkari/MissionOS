@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { Boxes, ClipboardList, Database, FileText, FlaskConical, History, LayoutDashboard, Network, PlayCircle, PlusCircle, Settings, X } from 'lucide-react'
@@ -66,6 +67,15 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
   const currentMissionId = useCurrentMissionId()
   const navigate = useNavigate()
   const { toast } = useToast()
+
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
 
   const aiCenterItems: { label: string; icon: LucideIcon; to: string | null; explanation: string }[] = [
     {

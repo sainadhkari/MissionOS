@@ -26,3 +26,148 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Mission AI companion scene (components/auth/MissionAIScene.tsx) */
+
+.eye-shape {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.eye-shape.eye-closed {
+  transform: scaleY(0.08);
+}
+.eye-shape.eye-peek {
+  transform: scaleY(0.4);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes eyeBlinkAnim {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  45%,
+  55% {
+    transform: scaleY(0.08);
+  }
+}
+.eye-shape.eye-blinking:not(.eye-closed) {
+  animation: eyeBlinkAnim 130ms ease-in-out;
+}
+@keyframes eyeBlinkLongAnim {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  30%,
+  70% {
+    transform: scaleY(0.08);
+  }
+}
+.eye-shape.eye-blinking-long:not(.eye-closed) {
+  animation: eyeBlinkLongAnim 260ms ease-in-out;
+}
+
+.shield {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.shield.shield-on {
+  opacity: 1;
+  animation: shieldPulse 2.6s ease-in-out infinite;
+}
+@keyframes shieldPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.07);
+  }
+}
+.shield.shield-warning {
+  animation: shieldFlicker 0.5s ease-in-out infinite;
+}
+@keyframes shieldFlicker {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.shield.shield-alert {
+  animation: shieldFlash 0.35s ease-out 1;
+  opacity: 1;
+}
+@keyframes shieldFlash {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.success-burst-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: successBurst 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes successBurst {
+  0% {
+    r: 6;
+    opacity: 0.8;
+    stroke-width: 3;
+  }
+  100% {
+    r: 190;
+    opacity: 0;
+    stroke-width: 0.5;
+  }
+}
+
+.exec-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: execSpin 24s linear infinite;
+}
+@keyframes execSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sceneShakeAnim {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
+.scene-shake {
+  animation: sceneShakeAnim 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}

@@ -133,6 +133,7 @@ function Navbar({ onMenuClick }: NavbarProps) {
           />
           <input
             type="search"
+            aria-label="Search missions"
             value={searchQuery}
             onChange={(event) => {
               setSearchQuery(event.target.value)
