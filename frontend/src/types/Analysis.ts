@@ -66,6 +66,16 @@ export interface RetrievalStats {
   sources: string[]
   embedding_model: string
   vector_store: string
+  /** How many distinct retrieval calls this snapshot combines. Absent on
+   * analyses persisted before per-agent retrieval existed (when every run
+   * genuinely made exactly one shared call). */
+  query_count?: number
+  /** Maps stage name ("business"/"strategy"/"risk"/"executive") to how many
+   * chunks that stage's own context ultimately contained. Absent/empty on
+   * analyses persisted before per-agent retrieval existed — callers should
+   * fall back to `chunks_retrieved` (the old shared total) in that case,
+   * mirroring `app.reports.derive.build_agent_collaboration`'s fallback. */
+  per_agent_chunks?: Record<string, number>
 }
 
 export interface MissionAnalysis {

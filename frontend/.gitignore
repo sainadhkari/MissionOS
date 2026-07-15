@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 .env
+coverage/
+
+# Ad-hoc diagnostic/scratch scripts (e.g. one-off Playwright debugging
+# scripts) written directly in this tree during live debugging sessions --
+# these belong in a scratch directory outside the repo, but this catches
+# any that slip in before they get committed by accident.
+diag_*
+scratch_*
 
 # Editor directories and files
 .vscode/*

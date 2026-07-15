@@ -204,6 +204,23 @@ export interface AgentBoardCard {
   executionTime: string | null
 }
 
+/** That agent's own genuine retrieved-chunk count (each stage retrieves
+ * independently with its own query — see `app.ai.orchestrator.
+ * AnalysisOrchestrator.run` on the backend), sourced from
+ * `retrieval_stats.per_agent_chunks`. Falls back to the same shared total
+ * on every card for analyses persisted before per-agent retrieval existed
+ * (when `per_agent_chunks` wasn't captured) — mirrors
+ * `app.reports.derive.build_agent_collaboration`'s
+ * `per_agent_chunks.get(stage_key, shared_total)` fallback exactly, so this
+ * view and the Executive Report never show different numbers for the same
+ * analysis. */
+function chunksRetrievedFor(analysis: MissionAnalysis | null, agentName: AgentName): number | null {
+  const retrieval = analysis?.retrieval_stats
+  if (!retrieval) return null
+  const stageKey = agentName.toLowerCase()
+  return retrieval.per_agent_chunks?.[stageKey] ?? retrieval.chunks_retrieved
+}
+
 export function buildAgentBoardCards(analysis: MissionAnalysis | null): AgentBoardCard[] {
   return AGENT_ORDER.map((agentName, index) => {
     const output = analysis ? agentOutput(analysis, agentName) : null
@@ -239,7 +256,7 @@ export function buildAgentBoardCards(analysis: MissionAnalysis | null): AgentBoa
       status: output ? 'Complete' : 'Not Available',
       confidencePercent: output ? Math.round(output.confidence * 100) : null,
       evidenceCount: output ? output.evidence_used.length : null,
-      chunksRetrieved: analysis?.retrieval_stats?.chunks_retrieved ?? null,
+      chunksRetrieved: chunksRetrievedFor(analysis, agentName),
       reasoningSummary,
       businessImpact,
       recommendationsCount,
