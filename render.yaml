@@ -48,6 +48,12 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+      # 30s fits this default model. If you change OPENAI_MODEL above to a
+      # reasoning-tier model (o1/o3/o4/gpt-5 families), raise this too --
+      # measured live, the Risk agent alone can take ~70s at reasoning
+      # effort "low" before writing any visible output, since
+      # max_output_tokens is a budget shared between invisible reasoning
+      # tokens and the visible response. 200 is a safe starting point.
       - key: OPENAI_TIMEOUT
         value: "30"
       - key: OPENAI_EMBEDDING_MODEL

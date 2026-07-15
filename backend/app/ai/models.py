@@ -50,6 +50,7 @@ class DatasetContext(BaseModel):
     columns: list[DatasetColumnSummary] = Field(default_factory=list)
     numeric_summary: dict[str, Any] = Field(default_factory=dict)
     categorical_summary: dict[str, Any] = Field(default_factory=dict)
+    computed_insights: dict[str, Any] = Field(default_factory=dict)
 
 
 class RetrievedChunk(BaseModel):
@@ -71,6 +72,16 @@ class AnalysisRequest(BaseModel):
 
     mission: MissionContext
     datasets: list[DatasetContext] = Field(default_factory=list)
+    # Populated only when 2+ `datasets` share a confidently-detected join key
+    # (see `app.services.dataset_join_service.compute_cross_dataset_insights`)
+    # -- e.g. a sales fact table joined to a store dimension table on a
+    # shared Store identifier. Deliberately a separate top-level field, not
+    # merged into any single dataset's `computed_insights`: it describes a
+    # relationship *between* datasets, not a fact about one of them alone,
+    # and every prompt already documents `computed_insights` as strictly
+    # per-dataset. Empty dict (the default) means no confident join was
+    # found among this mission's attached datasets.
+    cross_dataset_insights: dict[str, Any] = Field(default_factory=dict)
     retrieved_context: list[RetrievedChunk] = Field(default_factory=list)
     requested_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

@@ -31,6 +31,7 @@ class DatasetProfile(Base):
     duplicate_row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     numeric_summary: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     categorical_summary: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    computed_insights: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=True, default=dict)
     encoding: Mapped[str | None] = mapped_column(String(50), nullable=True)
     delimiter: Mapped[str | None] = mapped_column(String(10), nullable=True)
     validation_errors: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)

@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     # silently attempt a request that was never going to authenticate.
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    # 30s fits this default model. A reasoning-tier model (o1/o3/o4/gpt-5
+    # families, see openai_client._REASONING_MODEL_PREFIXES) needs much more
+    # -- measured live, the Risk agent alone can take ~70s at reasoning
+    # effort "low" before writing any visible output, since
+    # max_output_tokens is a budget shared between invisible reasoning
+    # tokens and the visible response. Override via OPENAI_TIMEOUT (e.g. 200)
+    # if OPENAI_MODEL is set to one of those.
     openai_timeout: float = 30.0
     openai_embedding_model: str = "text-embedding-3-small"
     # Relative to the backend/ directory, same convention as upload_dir —

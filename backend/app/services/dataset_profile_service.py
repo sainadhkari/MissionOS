@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models.dataset import Dataset
 from app.models.dataset_profile import DatasetProfile
+from app.services.dataset_insights_service import compute_dataset_insights
 from app.services.dataset_validation_service import ParsedDataset
 
 _DATE_PARSE_SUCCESS_THRESHOLD = 0.8
@@ -85,7 +86,7 @@ def _categorical_summary(series: pd.Series) -> dict[str, Any]:
     }
 
 
-def build_profile_payload(parsed: ParsedDataset) -> dict[str, Any]:
+def build_profile_payload(parsed: ParsedDataset, *, dataset: Dataset) -> dict[str, Any]:
     df = parsed.dataframe
     categories = _classify_columns(df)
 
@@ -120,6 +121,17 @@ def build_profile_payload(parsed: ParsedDataset) -> dict[str, Any]:
         "duplicate_row_count": int(df.duplicated().sum()),
         "numeric_summary": numeric_summary,
         "categorical_summary": categorical_summary,
+        # `dataset.mission` is always set (Dataset.mission_id is a
+        # non-nullable FK, and a dataset is always created scoped to one
+        # mission via POST /missions/{mission_id}/datasets, before
+        # profiling ever runs) -- so mission context for prioritizing
+        # relevant-but-weak insights is genuinely available at profile
+        # time, not deferred to analysis time.
+        "computed_insights": compute_dataset_insights(
+            df,
+            mission_problem_statement=dataset.mission.problem_statement,
+            mission_objective=dataset.mission.objective,
+        ),
         "encoding": parsed.encoding,
         "delimiter": parsed.delimiter,
     }
@@ -130,7 +142,7 @@ def _get_existing(db: Session, dataset_id: Any) -> DatasetProfile | None:
 
 
 def save_profile(db: Session, *, dataset: Dataset, parsed: ParsedDataset) -> DatasetProfile:
-    payload = build_profile_payload(parsed)
+    payload = build_profile_payload(parsed, dataset=dataset)
     existing = _get_existing(db, dataset.id)
     if existing is not None:
         for key, value in payload.items():
@@ -159,6 +171,7 @@ def save_validation_failure(db: Session, *, dataset: Dataset, errors: list[str])
             duplicate_row_count=0,
             numeric_summary={},
             categorical_summary={},
+            computed_insights={},
             encoding=None,
             delimiter=None,
             validation_errors=errors,

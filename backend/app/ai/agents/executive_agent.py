@@ -19,6 +19,7 @@ def _build_user_message(request: AnalysisRequest, prior: AnalysisResult) -> str:
     payload = {
         "mission": request.mission.model_dump(mode="json"),
         "datasets": [dataset.model_dump(mode="json") for dataset in request.datasets],
+        "cross_dataset_insights": request.cross_dataset_insights,
         "business_analysis": prior.business_analysis.model_dump(mode="json"),
         "strategy_analysis": prior.strategy_analysis.model_dump(mode="json"),
         "risk_analysis": prior.risk_analysis.model_dump(mode="json"),

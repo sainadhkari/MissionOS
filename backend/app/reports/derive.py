@@ -95,6 +95,11 @@ def average_confidence(
     risk: RiskAnalysisOutput,
     executive: ExecutiveAnalysisOutput,
 ) -> float:
+    """Feeds the "AI Confidence" KPI/`decision_readiness`. Each `.confidence`
+    is a server-computed, grounded score (see
+    `app.services.confidence_service.apply_grounded_confidence`), not the
+    model's own self-report -- it's overwritten in place before persistence,
+    so every consumer here reads the grounded number automatically."""
     values = [business.confidence, strategy.confidence, risk.confidence, executive.confidence]
     return sum(values) / len(values)
 
@@ -261,6 +266,11 @@ def build_kpis(
     business_domain: str,
     datasets: list[Dataset],
 ) -> list[ReportKpi]:
+    # "Business Health" and "AI Confidence" below both read `.confidence` --
+    # a server-computed, grounded score (see
+    # `app.services.confidence_service.apply_grounded_confidence`), not the
+    # model's free-form self-report, since a number the model can't
+    # actually ground was actively misleading as a dashboard metric.
     ai_confidence = average_confidence(business, strategy, risk, executive)
     quality_percent, quality_label, quality_variant = _dataset_quality(datasets)
     priority_label = mission_priority.value.capitalize()
@@ -359,7 +369,12 @@ def _agent_agreement_percent(
 ) -> int:
     """How closely the four agents' independent confidence scores agree —
     100% when identical, decreasing as they spread apart. A real statistic
-    over the four real confidence values, not an invented number."""
+    over the four real confidence values, not an invented number. Now that
+    `.confidence` is a grounded, server-computed score rather than the
+    model's free-form self-report (see `app.services.confidence_service`),
+    this spread reflects genuine differences in how well-supported each
+    stage's own evidence was, not just how the model happened to phrase its
+    self-assessment four separate times."""
     values = [business.confidence, strategy.confidence, risk.confidence, executive.confidence]
     spread = statistics.pstdev(values)
     # A spread of 0.25 (e.g. confidences ranging from ~0.55 to ~0.95) is
@@ -393,7 +408,13 @@ def build_confidence_factors(
     """Decomposes the single "AI Confidence" percentage into the real
     signals that feed a well-grounded analysis — every value here is
     computed from data the analysis actually produced, not invented to fill
-    out the list."""
+    out the list. These largely mirror the same real signals
+    `app.services.confidence_service.compute_agent_confidence` itself
+    weighs when computing each agent's `.confidence` (dataset
+    completeness, retrieved-evidence quality, evidence coverage) --
+    presented here as an independent, per-signal breakdown rather than
+    recomputed from the grounded score, so this section explains *why* AI
+    Confidence is what it is instead of just restating it."""
     quality_percent, _label, _variant = _dataset_quality(datasets)
     agreement_percent = _agent_agreement_percent(business, strategy, risk, executive)
     coverage_percent = evidence_coverage_percent(business, strategy, risk, executive)
@@ -603,14 +624,14 @@ def build_rag_section(
 def build_retrieval_analytics(
     retrieval_stats: RetrievalStats | None, datasets: list[Dataset]
 ) -> ReportRetrievalAnalytics | None:
-    """A pure metrics readout of the one retrieval call made for this
-    analysis run. Returns `None` when no retrieval was ever attempted (no
-    analysis has run yet) — the template omits the whole section rather
-    than showing an all-"Not Available" shell. Once an analysis has run,
-    individual fields still fall back to `None` (rendered as "Not
-    Available") if that specific value was never captured, e.g.
-    `context_size_chars` on an analysis persisted before that field
-    existed."""
+    """A pure metrics readout of every retrieval call made for this analysis
+    run, combined (see `mission_analysis_service._combine_retrieval_stats`).
+    Returns `None` when no retrieval was ever attempted (no analysis has run
+    yet) — the template omits the whole section rather than showing an
+    all-"Not Available" shell. Once an analysis has run, individual fields
+    still fall back to `None` (rendered as "Not Available") if that specific
+    value was never captured, e.g. `context_size_chars` on an analysis
+    persisted before that field existed."""
     if retrieval_stats is None:
         return None
 
@@ -618,17 +639,24 @@ def build_retrieval_analytics(
 
     return ReportRetrievalAnalytics(
         retrieval_latency_ms=retrieval_stats.retrieval_time_ms,
-        # Retrieval always makes exactly one query embedding and one vector
-        # search per analysis run (see `mission_analysis_service.
-        # _retrieve_context`) — a structural fact of the architecture, not a
-        # per-run measurement, so it's reported as a fixed real count.
-        query_count=1,
-        embedding_requests=1,
+        # One query embedding and one vector search per retrieval call this
+        # run made (see `app.ai.orchestrator.AnalysisOrchestrator.run`) --
+        # `query_count` is the genuine count `RetrievalStats` combined from,
+        # not a structural constant (retrieval now happens per agent stage,
+        # not once shared across all four).
+        query_count=retrieval_stats.query_count,
+        embedding_requests=retrieval_stats.query_count,
         retrieved_chunks=retrieval_stats.chunks_retrieved,
         average_similarity_score=retrieval_stats.average_similarity_score,
         context_size_chars=retrieval_stats.total_context_chars,
         indexed_documents=indexed_documents if indexed_documents > 0 else None,
     )
+
+
+# Stage keys `RetrievalStats.per_agent_chunks` is keyed by (see
+# `app.ai.orchestrator.OrchestratorRun.chunks_retrieved_by_stage`), in the
+# same Business/Strategy/Risk/Executive order as `_AGENT_ROLES`.
+_AGENT_STAGE_KEYS = ["business", "strategy", "risk", "executive"]
 
 
 def build_agent_collaboration(
@@ -640,13 +668,17 @@ def build_agent_collaboration(
     retrieval_stats: RetrievalStats | None,
 ) -> list[ReportAgentCollaboration]:
     """One card per agent — confidence and evidence counts come straight
-    from that agent's own stored output; `chunks_retrieved` is the same
-    number for all four because retrieval happens once and the identical
-    result is shared across every agent (see
-    `mission_analysis_service._run_pipeline_async`), reported honestly as
-    such rather than implying each agent ran its own separate retrieval."""
-    chunks_retrieved = retrieval_stats.chunks_retrieved if retrieval_stats else None
+    from that agent's own stored output. `chunks_retrieved` is that agent's
+    own genuine count (each stage retrieves independently with its own
+    query, see `app.ai.orchestrator.AnalysisOrchestrator.run`), sourced from
+    `retrieval_stats.per_agent_chunks`. Falls back to the same shared total
+    on every card for analyses persisted before per-agent retrieval existed
+    (when `per_agent_chunks` wasn't captured) — preserves exactly what those
+    older reports already showed, rather than turning accurate old numbers
+    into "Not Available"."""
     outputs = [business, strategy, risk, executive]
+    per_agent_chunks = retrieval_stats.per_agent_chunks if retrieval_stats else {}
+    shared_total = retrieval_stats.chunks_retrieved if retrieval_stats else None
     return [
         ReportAgentCollaboration(
             name=name,
@@ -655,11 +687,13 @@ def build_agent_collaboration(
             confidence_variant=confidence_variant(output.confidence),
             evidence_count=len(output.evidence_used),
             evidence=output.evidence_used,
-            chunks_retrieved=chunks_retrieved,
+            chunks_retrieved=per_agent_chunks.get(stage_key, shared_total),
             status_label="Complete",
             status_variant="success",
         )
-        for (name, role), output in zip(_AGENT_ROLES, outputs, strict=True)
+        for (name, role), stage_key, output in zip(
+            _AGENT_ROLES, _AGENT_STAGE_KEYS, outputs, strict=True
+        )
     ]
 
 

@@ -17,7 +17,7 @@ from app.ai.models import (
     MissionContext,
     RetrievedChunk,
 )
-from app.ai.orchestrator import AnalysisOrchestrator
+from app.ai.orchestrator import AnalysisOrchestrator, OrchestratorRun
 from app.ai.prompt_loader import PromptLoader
 from app.ai.providers import OpenAIClient
 from app.config.settings import settings
@@ -35,7 +35,8 @@ from app.rag.retrieval_service import RetrievalService
 from app.rag.vector_store import ChromaVectorStore
 from app.repositories.mission_analysis_repository import MissionAnalysisRepository
 from app.repositories.mission_repository import MissionRepository
-from app.services import mission_service
+from app.services import confidence_service, dataset_join_service, mission_service
+from app.services.dataset_validation_service import DatasetValidationError, validate_and_read
 
 logger = logging.getLogger("missionos.mission_analysis")
 
@@ -81,30 +82,76 @@ def build_dataset_context(dataset: Dataset) -> DatasetContext:
         columns=columns,
         numeric_summary=profile.numeric_summary if profile else {},
         categorical_summary=profile.categorical_summary if profile else {},
+        # `computed_insights` is a nullable column (added after profiles already
+        # existed, so old rows have no backfilled value) -- `or {}` covers both
+        # "no profile at all" and "profile predates this column".
+        computed_insights=(profile.computed_insights or {}) if profile else {},
     )
 
 
-def build_analysis_request(
-    mission: Mission,
-    datasets: list[Dataset],
-    *,
-    retrieved_context: list[RetrievedChunk] | None = None,
-) -> AnalysisRequest:
+def _build_cross_dataset_insights(mission: Mission, datasets: list[Dataset]) -> dict:
+    """Best-effort cross-dataset join detection (see `dataset_join_service`)
+    across every ready dataset attached to this mission.
+
+    Requires each dataset's actual rows, not just its persisted
+    `DatasetProfile` -- profiles only ever store aggregate stats
+    (numeric_summary, computed_insights, etc.), never raw rows, since
+    keeping a second full copy of every uploaded file's data in Postgres
+    would be wasteful. Join detection genuinely needs the rows (to check
+    key uniqueness and actual value overlap, not just column names), so
+    this re-reads and re-parses each dataset's file from disk -- the same
+    `validate_and_read` the original profiling background task used, run
+    again here because that task's already-parsed DataFrame isn't
+    available this far downstream, in a separate run at analysis time.
+
+    A dataset whose file can no longer be read/parsed is simply excluded
+    from join detection (not a failure of the whole analysis) -- its own
+    independent profile/computed_insights, already persisted, is
+    unaffected either way.
+
+    COST NOTE: this re-parse happens on *every* call to this function --
+    every analysis run, including a retry of a previously-failed one, not
+    just the first. There's no cache keyed on dataset content/version, so
+    a mission with large attached files that gets re-analyzed frequently
+    pays this file-read/parse cost each time. Fine at today's dataset
+    sizes; worth revisiting (e.g. caching the parsed frame keyed on
+    dataset id + file hash, alongside the existing profile) if either
+    grows enough for this to show up as real latency or I/O cost.
+    """
+    if len(datasets) < 2:
+        return {}
+
+    dataframes = {}
+    for dataset in datasets:
+        try:
+            parsed = validate_and_read(dataset)
+        except DatasetValidationError:
+            continue
+        dataframes[dataset.original_filename] = parsed.dataframe
+
+    if len(dataframes) < 2:
+        return {}
+
+    return (
+        dataset_join_service.compute_cross_dataset_insights(
+            dataframes,
+            mission_problem_statement=mission.problem_statement,
+            mission_objective=mission.objective,
+        )
+        or {}
+    )
+
+
+def build_analysis_request(mission: Mission, datasets: list[Dataset]) -> AnalysisRequest:
+    # `retrieved_context` is deliberately left at its default (empty) --
+    # retrieval now happens per stage, inside `AnalysisOrchestrator.run`,
+    # which overrides it with each stage's own results via `model_copy()`
+    # rather than reading whatever this base request was built with.
     return AnalysisRequest(
         mission=build_mission_context(mission),
         datasets=[build_dataset_context(dataset) for dataset in datasets],
-        retrieved_context=retrieved_context or [],
+        cross_dataset_insights=_build_cross_dataset_insights(mission, datasets),
     )
-
-
-def _default_retrieval_query(mission: Mission) -> str:
-    """The RAG query used for a mission's analysis run when there's no more
-    specific user-supplied query to retrieve for — the mission's own stated
-    problem and objective are the best available proxy for "what's relevant
-    to this analysis", and are retrieved once, up front, then shared across
-    every agent via `AnalysisRequest.retrieved_context` rather than
-    re-queried per stage."""
-    return f"{mission.title}. {mission.problem_statement} {mission.objective}"
 
 
 def start_analysis(db: Session, *, user: User, mission_id: uuid.UUID) -> MissionAnalysis:
@@ -140,6 +187,7 @@ def _build_orchestrator() -> AnalysisOrchestrator:
         strategy_agent=StrategyAgent(client, prompt_loader),
         risk_agent=RiskAgent(client, prompt_loader),
         executive_agent=ExecutiveAgent(client, prompt_loader),
+        retriever=_retrieve,
     )
 
 
@@ -152,27 +200,25 @@ def _build_retrieval_service() -> RetrievalService:
     )
 
 
-async def _retrieve_context(
-    mission: Mission,
+async def _retrieve(
+    mission_id: uuid.UUID, query: str
 ) -> tuple[list[RetrievedChunk], RetrievalStats | None]:
-    """Best-effort retrieval: RAG is additive on top of a pipeline that
-    already worked without it, so a retrieval failure (embedding API down,
-    vector store unavailable, nothing indexed yet) degrades to "no retrieved
-    context" rather than failing the entire analysis run. The `RetrievalStats`
-    snapshot (or `None`, if retrieval couldn't run at all) is what
-    `run_analysis_pipeline` persists onto `MissionAnalysis.retrieval_stats`
-    for the report/dashboard to show genuine RAG metrics from — never
-    recomputed after the fact, and never fabricated when retrieval failed.
+    """Best-effort retrieval for one query: RAG is additive on top of a
+    pipeline that already worked without it, so a retrieval failure
+    (embedding API down, vector store unavailable, nothing indexed yet)
+    degrades to "no retrieved context" for that stage rather than failing
+    the entire analysis run. Called once per agent stage by
+    `AnalysisOrchestrator.run` (see `app.ai.orchestrator`), each with that
+    stage's own query, rather than once shared across every agent.
     """
-    query = _default_retrieval_query(mission)
     started = time.perf_counter()
     try:
         retrieval = _build_retrieval_service()
-        matches = await retrieval.retrieve(mission_id=mission.id, query_text=query)
+        matches = await retrieval.retrieve(mission_id=mission_id, query_text=query)
     except RagException as exc:
         logger.warning(
             "RAG retrieval failed for mission %s, proceeding without it: %s: %s",
-            mission.id,
+            mission_id,
             type(exc).__name__,
             exc,
         )
@@ -204,17 +250,66 @@ async def _retrieve_context(
     return retrieved_context, stats
 
 
+def _combine_retrieval_stats(run: OrchestratorRun) -> RetrievalStats | None:
+    """Combines the per-agent retrieval calls one orchestrator run made into
+    a single, honest snapshot of that run's whole RAG activity. Keeping
+    `MissionAnalysis.retrieval_stats` a single object (rather than one row
+    per agent) means every existing consumer — the Executive Report's RAG
+    and Retrieval Analytics sections, the live AI Collaboration Center —
+    keeps working against the same shape unmodified; `query_count` and
+    `per_agent_chunks` (see `RetrievalStats`) carry the per-call/per-agent
+    detail that combining the rest of the fields would otherwise lose.
+    Returns `None` only when no retrieval call succeeded at all (e.g. RAG is
+    down for the whole run), matching `_retrieve`'s existing "no stats
+    fabricated on failure" behavior.
+    """
+    stats_list = [stats for stats in run.retrieval_stats_by_stage.values() if stats is not None]
+    if not stats_list:
+        return None
+
+    total_chunks = sum(s.chunks_retrieved for s in stats_list)
+    scored = [
+        (s.average_similarity_score, s.chunks_retrieved)
+        for s in stats_list
+        if s.average_similarity_score is not None and s.chunks_retrieved > 0
+    ]
+    weighted_similarity = (
+        sum(score * count for score, count in scored) / sum(count for _, count in scored)
+        if scored
+        else None
+    )
+
+    return RetrievalStats(
+        query="; ".join(s.query for s in stats_list),
+        top_k=stats_list[0].top_k,
+        chunks_retrieved=total_chunks,
+        average_similarity_score=weighted_similarity,
+        retrieval_time_ms=round(sum(s.retrieval_time_ms for s in stats_list), 1),
+        sources=sorted({source for s in stats_list for source in s.sources}),
+        embedding_model=stats_list[0].embedding_model,
+        vector_store=stats_list[0].vector_store,
+        total_context_chars=sum(s.total_context_chars or 0 for s in stats_list),
+        query_count=len(stats_list),
+        per_agent_chunks=run.chunks_retrieved_by_stage,
+    )
+
+
 async def _run_pipeline_async(
     mission: Mission, datasets: list[Dataset]
 ) -> tuple[AnalysisResult, RetrievalStats | None]:
-    """Retrieves this mission's relevant evidence once, then runs the
-    four-agent orchestrator with it attached — bridged into with a single
-    `asyncio.run()` call from the sync background task below, rather than
-    one `asyncio.run()` for retrieval and a second for the orchestrator."""
-    retrieved_context, stats = await _retrieve_context(mission)
-    request = build_analysis_request(mission, datasets, retrieved_context=retrieved_context)
-    result = await _build_orchestrator().run(request)
-    return result, stats
+    """Builds the mission/dataset context once, then runs the four-agent
+    orchestrator — which retrieves this mission's relevant evidence itself,
+    once per stage with that stage's own query (see
+    `AnalysisOrchestrator.run`) — bridged into with a single `asyncio.run()`
+    call from the sync background task below. Each agent's self-reported
+    `confidence` is then overwritten with a server-computed, grounded score
+    (see `confidence_service.apply_grounded_confidence` for the replace-
+    in-place decision and why) before the result is returned for
+    persistence."""
+    request = build_analysis_request(mission, datasets)
+    run = await _build_orchestrator().run(request)
+    result = confidence_service.apply_grounded_confidence(request, run)
+    return result, _combine_retrieval_stats(run)
 
 
 def run_analysis_pipeline(mission_id: uuid.UUID) -> None:

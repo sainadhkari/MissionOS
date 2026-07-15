@@ -20,11 +20,22 @@ _PROMPT_NAME = "strategy"
 # signature identical across every agent, which matters for orchestrator
 # uniformity and for treating this as a future LangGraph node unmodified.
 _DEFAULT_TEMPERATURE = 0.2
-# Raised from 1500: retrieved-evidence context (app.ai.context_formatting.
-# format_retrieved_context) and the evidence_used output field both add to
-# the expected response length, and 1500 was occasionally too tight,
-# truncating the JSON response mid-string.
-_DEFAULT_MAX_OUTPUT_TOKENS = 2200
+# Raised from 1500, then from 2200: retrieved-evidence context (app.ai.
+# context_formatting.format_retrieved_context), computed_insights in each
+# dataset (app.services.dataset_insights_service), and the evidence_used
+# output field all add to the expected response length. 2200 was still
+# occasionally too tight and truncated the JSON response mid-string --
+# confirmed via a live gpt-5 call that returned `status="incomplete"`,
+# `incomplete_details.reason="max_output_tokens"`, with `output_tokens=2200`
+# entirely spent (`reasoning_tokens=1088` of those on invisible reasoning
+# before a single visible character was written). For gpt-5-family
+# reasoning models, max_output_tokens is a *shared* budget across invisible
+# reasoning tokens and the visible JSON response, not a cap on the visible
+# text alone -- and reasoning-token usage varies run to run for the same
+# prompt, so a cap that "usually" fits can still truncate intermittently.
+# 4000 leaves comfortable headroom for both, even citing the specific
+# numbers the strategy.md prompt now asks for.
+_DEFAULT_MAX_OUTPUT_TOKENS = 4000
 
 
 def _build_user_message(request: AnalysisRequest, prior: AnalysisResult) -> str:
@@ -38,6 +49,7 @@ def _build_user_message(request: AnalysisRequest, prior: AnalysisResult) -> str:
     payload = {
         "mission": request.mission.model_dump(mode="json"),
         "datasets": [dataset.model_dump(mode="json") for dataset in request.datasets],
+        "cross_dataset_insights": request.cross_dataset_insights,
         "business_analysis": prior.business_analysis.model_dump(mode="json"),
     }
     return format_structured_payload(payload) + format_retrieved_context(request.retrieved_context)
