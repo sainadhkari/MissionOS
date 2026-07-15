@@ -3,7 +3,16 @@ __pycache__/
 *.pyc
 .env
 .ruff_cache/
+.pytest_cache/
 storage/uploads/*
 !storage/uploads/.gitkeep
 storage/vectorstore/*
 !storage/vectorstore/.gitkeep
+
+# Ad-hoc diagnostic/scratch scripts written directly in this tree during
+# live debugging sessions (e.g. one-off scripts calling the real OpenAI API
+# to isolate a bug) -- these belong in a scratch directory outside the repo,
+# but this catches any that slip in before they get committed by accident.
+diag_*.py
+diag_*.txt
+scratch_*
